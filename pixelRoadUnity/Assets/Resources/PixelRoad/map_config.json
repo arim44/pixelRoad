@@ -1,0 +1,24 @@
+{
+  "appTitle": "픽셀 로드",
+  "mapImageResourcePath": "PixelRoad/Maps/gangnam_osm_label_free",
+  "spotsCsvResourcePath": "PixelRoad/spots",
+  "projection": "WebMercator",
+  "bounds": {
+    "northLat": 37.5868009304654,
+    "southLat": 37.4071386954672,
+    "westLon": 126.92586845075705,
+    "eastLon": 127.15231855246095
+  },
+  "defaultUnlockRadiusMeters": 50,
+  "enablePixelFilter": true,
+  "pixelBlockSize": 4,
+  "enableBackgroundUnlock": false,
+  "maxActiveGeofences": 100,
+  "desiredAccuracyMeters": 15,
+  "locationUpdateDistanceMeters": 3,
+  "editorStartLatitude": 37.4969698129663,
+  "editorStartLongitude": 127.039093501609,
+  "editorMoveSpeedMetersPerSecond": 250,
+  "editorFastMoveMultiplier": 4,
+  "editorFollowSimulatedLocation": true
+}
