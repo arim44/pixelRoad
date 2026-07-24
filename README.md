@@ -96,59 +96,23 @@
 
 ```text
 Unity (Client)
-
-        │
-
         ▼
-
 GPS 위치 확인
-
-        │
-
         ▼
-
 랜드마크(JSON)
-
-        │
-
         ▼
-
 방문 판정
-
-        │
-
         ▼
-
 도감 저장
-
-        │
-
         ▼
-
 AI 탐험 리포트 요청
-
-        │
-
         ▼
-
 NestJS API
-
-        │
-
         ▼
-
 Gemma (Hugging Face)
-
-        │
-
         ▼
-
 AI 결과 반환
-
-        │
-
         ▼
-
 Unity 화면 출력
 ```
 
