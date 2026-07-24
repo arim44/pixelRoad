@@ -287,6 +287,7 @@ feature/기능명
 
 - Team Leader : 기획 / Backend / AI
 - Developer : Unity Client
+- Developer : Unity Client
 
 ---
 
