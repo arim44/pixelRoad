@@ -285,9 +285,11 @@ feature/기능명
 
 **Compass Studio**
 
-- Team Leader : 기획 / Backend / AI
-- Developer : Unity Client
-- Developer : Unity Client
+| Role | Responsibility |
+|------|----------------|
+| Team Leader | 기획 · Backend · AI |
+| Developer | Unity Client |
+| Developer | Unity Client |
 
 ---
 
