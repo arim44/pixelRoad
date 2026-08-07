@@ -3,9 +3,15 @@ using System.Collections.Generic;
 using PixelRoad.Data;
 using PixelRoad.Geo;
 using PixelRoad.Location;
+using PixelRoad.Mapping;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
+
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem.UI;
+#endif
 
 namespace PixelRoad.UI
 {
@@ -13,6 +19,7 @@ namespace PixelRoad.UI
     {
         private const float MinZoom = 0.45f;
         private const float MaxZoom = 6f;
+        private const string PixelModePreferenceKey = "PixelRoad.MapPixelMode";
 
         private readonly MapConfig config;
         private readonly Texture2D mapTexture;
@@ -21,6 +28,9 @@ namespace PixelRoad.UI
         private readonly RectTransform viewport;
         private readonly RectTransform mapContent;
         private readonly RawImage mapImage;
+        private readonly RawImage liveMapImage;
+        private readonly RectTransform markerRoot;
+        private readonly ILiveMapController liveMapRenderer;
         private readonly Image userMarker;
         private readonly GameObject codexPanel;
         private readonly TMP_Text statusText;
@@ -34,6 +44,8 @@ namespace PixelRoad.UI
         private readonly Material pixelMaterial;
         private float zoom = 1f;
         private bool pixelFilterEnabled;
+        private bool liveMapReady;
+        private GeoLocationSample lastUserLocation;
         private int unlockedCount;
         private int totalCount;
 
@@ -43,9 +55,12 @@ namespace PixelRoad.UI
         {
             this.config = config;
             this.mapTexture = mapTexture;
-            pixelFilterEnabled = config.enablePixelFilter;
+            pixelFilterEnabled = PlayerPrefs.HasKey(PixelModePreferenceKey)
+                ? PlayerPrefs.GetInt(PixelModePreferenceKey, 0) != 0
+                : config.enablePixelFilter;
 
             Canvas canvas = GetOrCreateCanvas();
+            EnsureUiInput(canvas);
             pixelFont = CreateRuntimePixelFont();
             viewport = CreateRect("MapViewport", canvas.transform);
             Stretch(viewport);
@@ -73,6 +88,14 @@ namespace PixelRoad.UI
             imageRect.sizeDelta = new Vector2(mapTexture.width, mapTexture.height);
             imageRect.anchoredPosition = Vector2.zero;
 
+            liveMapImage = CreateObject("LiveVectorMap", viewport).AddComponent<RawImage>();
+            Stretch(liveMapImage.rectTransform);
+            liveMapImage.raycastTarget = false;
+            liveMapImage.enabled = false;
+
+            markerRoot = CreateRect("MapMarkerOverlay", viewport);
+            Stretch(markerRoot);
+
             Shader pixelShader = Shader.Find("PixelRoad/UI Pixelate");
             if (pixelShader != null)
             {
@@ -82,6 +105,31 @@ namespace PixelRoad.UI
 
             ApplyPixelFilter();
 
+            ILiveMapController renderer = null;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || PIXELROAD_LIVE_VECTOR_MAP
+            if (ShouldEnableLiveVectorMap(config))
+            {
+                renderer = viewport.gameObject.AddComponent<LiveVectorMapRenderer>();
+                renderer.ViewChanged += UpdateLiveMarkerPositions;
+                renderer.FirstTileReady += OnFirstLiveTileReady;
+                if (!renderer.Initialize(
+                        config,
+                        viewport,
+                        liveMapImage,
+                        config.editorStartLatitude,
+                        config.editorStartLongitude))
+                {
+                    renderer.ViewChanged -= UpdateLiveMarkerPositions;
+                    renderer.FirstTileReady -= OnFirstLiveTileReady;
+                    UnityEngine.Object.Destroy(renderer as UnityEngine.Object);
+                    renderer = null;
+                }
+            }
+#endif
+
+            liveMapRenderer = renderer;
+            liveMapRenderer?.SetPixelMode(pixelFilterEnabled);
+
             userMarker = CreateMarkerImage("UserMarker", mapContent, new Color32(52, 122, 255, 255), 22, true);
             userMarker.gameObject.SetActive(false);
 
@@ -90,6 +138,7 @@ namespace PixelRoad.UI
             CreateTitle(topBar);
             pixelToggleButton = CreatePixelToggle(topBar);
             pixelToggleText = pixelToggleButton.GetComponentInChildren<TMP_Text>();
+            CreateZoomControls(canvas.transform);
 
             statusText = CreateText("StatusText", canvas.transform, "GPS", 18, TextAlignmentOptions.Left);
             RectTransform statusRect = statusText.rectTransform;
@@ -99,6 +148,8 @@ namespace PixelRoad.UI
             statusRect.sizeDelta = new Vector2(-32f, 28f);
             statusRect.anchoredPosition = new Vector2(0f, 14f);
             statusText.color = new Color32(246, 237, 217, 255);
+
+            CreateAttribution(canvas.transform);
 
             RectTransform bottomPanel = CreateBottomPanel(canvas.transform);
             selectedNameText = CreateText("SelectedName", bottomPanel, "거점을 선택하세요", 22, TextAlignmentOptions.Left);
@@ -123,6 +174,7 @@ namespace PixelRoad.UI
             progressText = codexPanel.transform.Find("Window/Header/Progress").GetComponent<TMP_Text>();
             codexPanel.SetActive(false);
             UpdatePixelToggleText();
+            Canvas.ForceUpdateCanvases();
         }
 
         public static PixelRoadRuntimeView Create(MapConfig config, Texture2D mapTexture)
@@ -132,13 +184,20 @@ namespace PixelRoad.UI
 
         public void AddSpotMarker(SpotRuntimeState state, Action<SpotRuntimeState> onClick)
         {
-            Image marker = CreateMarkerImage("Spot_" + state.Definition.Id, mapContent, MarkerColor(state), 28, false);
-            marker.rectTransform.anchoredPosition = LatLonToMapLocal(state.Definition.Latitude, state.Definition.Longitude);
+            Transform parent = liveMapReady ? markerRoot : mapContent;
+            Image marker = CreateMarkerImage("Spot_" + state.Definition.Id, parent, MarkerColor(state), 28, false);
+            marker.rectTransform.anchoredPosition = liveMapReady
+                ? liveMapRenderer.LatLonToViewportLocal(state.Definition.Latitude, state.Definition.Longitude)
+                : LatLonToMapLocal(state.Definition.Latitude, state.Definition.Longitude);
             Button button = marker.gameObject.AddComponent<Button>();
             button.transition = Selectable.Transition.None;
             button.targetGraphic = marker;
             button.onClick.AddListener(() => onClick?.Invoke(state));
-            markers[state.Definition.Id] = new MarkerBinding(marker, button);
+            markers[state.Definition.Id] = new MarkerBinding(
+                marker,
+                button,
+                state.Definition.Latitude,
+                state.Definition.Longitude);
 
             CreateCodexCard(state, onClick);
             UpdateSpotState(state);
@@ -146,9 +205,24 @@ namespace PixelRoad.UI
 
         public void UpdateUserLocation(GeoLocationSample location)
         {
+            lastUserLocation = location;
             if (!location.IsValid)
             {
                 userMarker.gameObject.SetActive(false);
+                return;
+            }
+
+            if (liveMapReady)
+            {
+                bool isVisible = liveMapRenderer.IsInViewport(location.Latitude, location.Longitude, 24f);
+                userMarker.gameObject.SetActive(isVisible);
+                if (isVisible)
+                {
+                    userMarker.rectTransform.anchoredPosition = liveMapRenderer.LatLonToViewportLocal(
+                        location.Latitude,
+                        location.Longitude);
+                }
+
                 return;
             }
 
@@ -163,6 +237,16 @@ namespace PixelRoad.UI
 
         public void CenterOnLocation(double latitude, double longitude)
         {
+            if (liveMapRenderer != null)
+            {
+                liveMapRenderer.SetCenter(latitude, longitude);
+            }
+
+            if (liveMapReady)
+            {
+                return;
+            }
+
             Vector2 local = LatLonToMapLocal(latitude, longitude);
             mapContent.anchoredPosition = -local * zoom;
             ClampContent();
@@ -194,6 +278,11 @@ namespace PixelRoad.UI
 
         public void SetCodexVisible(bool visible)
         {
+            if (visible)
+            {
+                codexPanel.transform.SetAsLastSibling();
+            }
+
             codexPanel.SetActive(visible);
         }
 
@@ -271,6 +360,67 @@ namespace PixelRoad.UI
             return button;
         }
 
+        private void CreateZoomControls(Transform parent)
+        {
+            RectTransform controls = CreateRect("ZoomControls", parent);
+            controls.anchorMin = new Vector2(1f, 0.5f);
+            controls.anchorMax = new Vector2(1f, 0.5f);
+            controls.pivot = new Vector2(1f, 0.5f);
+            controls.sizeDelta = new Vector2(64f, 128f);
+            controls.anchoredPosition = new Vector2(-16f, 24f);
+
+            Button zoomIn = CreateButton("ZoomIn", controls, "+", new Vector2(56f, 56f));
+            RectTransform zoomInRect = zoomIn.GetComponent<RectTransform>();
+            zoomInRect.anchorMin = new Vector2(0.5f, 1f);
+            zoomInRect.anchorMax = new Vector2(0.5f, 1f);
+            zoomInRect.pivot = new Vector2(0.5f, 1f);
+            zoomInRect.anchoredPosition = Vector2.zero;
+            zoomIn.onClick.AddListener(() => ZoomAtViewportCenter(2f));
+
+            Button zoomOut = CreateButton("ZoomOut", controls, "-", new Vector2(56f, 56f));
+            RectTransform zoomOutRect = zoomOut.GetComponent<RectTransform>();
+            zoomOutRect.anchorMin = new Vector2(0.5f, 0f);
+            zoomOutRect.anchorMax = new Vector2(0.5f, 0f);
+            zoomOutRect.pivot = new Vector2(0.5f, 0f);
+            zoomOutRect.anchoredPosition = Vector2.zero;
+            zoomOut.onClick.AddListener(() => ZoomAtViewportCenter(0.5f));
+        }
+
+        private void CreateAttribution(Transform parent)
+        {
+            RectTransform panel = CreateRect("MapAttribution", parent);
+            panel.anchorMin = new Vector2(1f, 0f);
+            panel.anchorMax = new Vector2(1f, 0f);
+            panel.pivot = new Vector2(1f, 0f);
+            panel.sizeDelta = new Vector2(310f, 30f);
+            panel.anchoredPosition = new Vector2(-10f, 172f);
+            Image background = panel.gameObject.AddComponent<Image>();
+            background.color = new Color32(18, 17, 15, 210);
+
+            Button button = panel.gameObject.AddComponent<Button>();
+            button.transition = Selectable.Transition.None;
+            button.targetGraphic = background;
+            if (!string.IsNullOrWhiteSpace(config.mapAttributionUrl))
+            {
+                button.onClick.AddListener(() => Application.OpenURL(config.mapAttributionUrl));
+            }
+            else
+            {
+                button.interactable = false;
+            }
+
+            TMP_Text text = CreateText(
+                "Label",
+                panel,
+                string.IsNullOrWhiteSpace(config.mapAttribution)
+                    ? "© OpenStreetMap contributors"
+                    : config.mapAttribution,
+                13,
+                TextAlignmentOptions.Center);
+            Stretch(text.rectTransform);
+            text.color = new Color32(246, 237, 217, 255);
+        }
+
         private RectTransform CreateBottomPanel(Transform parent)
         {
             RectTransform panel = CreateRect("SpotInfoPanel", parent);
@@ -292,10 +442,11 @@ namespace PixelRoad.UI
             overlayBackground.color = new Color32(15, 14, 12, 230);
 
             RectTransform window = CreateRect("Window", overlay);
-            window.anchorMin = new Vector2(0.5f, 0.5f);
-            window.anchorMax = new Vector2(0.5f, 0.5f);
+            window.anchorMin = new Vector2(0.08f, 0.08f);
+            window.anchorMax = new Vector2(0.92f, 0.92f);
             window.pivot = new Vector2(0.5f, 0.5f);
-            window.sizeDelta = new Vector2(660f, 880f);
+            window.offsetMin = Vector2.zero;
+            window.offsetMax = Vector2.zero;
             Image windowBackground = window.gameObject.AddComponent<Image>();
             windowBackground.color = new Color32(236, 224, 194, 255);
 
@@ -363,7 +514,11 @@ namespace PixelRoad.UI
             Button card = CreateButton("Codex_" + state.Definition.Id, content, string.Empty, new Vector2(294f, 168f));
             Image background = card.GetComponent<Image>();
             background.color = new Color32(28, 25, 21, 255);
-            card.onClick.AddListener(() => onClick?.Invoke(state));
+            card.onClick.AddListener(() =>
+            {
+                onClick?.Invoke(state);
+                SetCodexVisible(false);
+            });
 
             Image icon = CreateMarkerImage("Icon", card.transform, MarkerColor(state), 42, false);
             icon.rectTransform.anchorMin = new Vector2(0f, 1f);
@@ -396,29 +551,65 @@ namespace PixelRoad.UI
         private void TogglePixelFilter()
         {
             pixelFilterEnabled = !pixelFilterEnabled;
+            PlayerPrefs.SetInt(PixelModePreferenceKey, pixelFilterEnabled ? 1 : 0);
+            PlayerPrefs.Save();
             ApplyPixelFilter();
             UpdatePixelToggleText();
         }
 
         private void ApplyPixelFilter()
         {
-            mapTexture.filterMode = pixelFilterEnabled ? FilterMode.Point : FilterMode.Bilinear;
-            mapImage.material = pixelFilterEnabled ? pixelMaterial : null;
+            if (liveMapRenderer != null)
+            {
+                liveMapRenderer.SetPixelMode(pixelFilterEnabled);
+            }
+
+            if (!liveMapReady)
+            {
+                mapTexture.filterMode = pixelFilterEnabled ? FilterMode.Point : FilterMode.Bilinear;
+                mapImage.material = pixelFilterEnabled ? pixelMaterial : null;
+            }
         }
 
         private void UpdatePixelToggleText()
         {
             pixelToggleText.text = pixelFilterEnabled ? "픽셀 ON" : "픽셀 OFF";
+            if (pixelToggleButton.targetGraphic is Image background)
+            {
+                background.color = pixelFilterEnabled
+                    ? new Color32(94, 205, 162, 255)
+                    : new Color32(239, 228, 199, 255);
+            }
         }
 
         private void Pan(Vector2 delta)
         {
+            if (liveMapRenderer != null)
+            {
+                liveMapRenderer.Pan(delta);
+            }
+
+            if (liveMapReady)
+            {
+                return;
+            }
+
             mapContent.anchoredPosition += delta;
             ClampContent();
         }
 
         private void ZoomAt(float factor, Vector2 screenPosition)
         {
+            if (liveMapRenderer != null)
+            {
+                liveMapRenderer.ZoomAt(factor, screenPosition);
+            }
+
+            if (liveMapReady)
+            {
+                return;
+            }
+
             float nextZoom = Mathf.Clamp(zoom * factor, MinZoom, MaxZoom);
             if (Mathf.Approximately(nextZoom, zoom))
             {
@@ -431,6 +622,13 @@ namespace PixelRoad.UI
             mapContent.localScale = Vector3.one * zoom;
             mapContent.anchoredPosition = localPoint - before * zoom;
             ClampContent();
+        }
+
+        private void ZoomAtViewportCenter(float factor)
+        {
+            Vector3 worldCenter = viewport.TransformPoint(viewport.rect.center);
+            Vector2 screenCenter = RectTransformUtility.WorldToScreenPoint(null, worldCenter);
+            ZoomAt(factor, screenCenter);
         }
 
         private void ClampContent()
@@ -456,6 +654,80 @@ namespace PixelRoad.UI
             float x = normalized.x * mapTexture.width - mapTexture.width * 0.5f;
             float y = mapTexture.height * 0.5f - normalized.y * mapTexture.height;
             return new Vector2(x, y);
+        }
+
+        private void OnFirstLiveTileReady()
+        {
+            if (liveMapReady || liveMapRenderer == null)
+            {
+                return;
+            }
+
+            liveMapReady = true;
+            ReparentMarkerToOverlay(userMarker);
+            foreach (KeyValuePair<string, MarkerBinding> pair in markers)
+            {
+                ReparentMarkerToOverlay(pair.Value.Image);
+            }
+
+            mapContent.gameObject.SetActive(false);
+            liveMapImage.enabled = true;
+            UpdateLiveMarkerPositions();
+            ApplyPixelFilter();
+        }
+
+        private void UpdateLiveMarkerPositions()
+        {
+            if (!liveMapReady || liveMapRenderer == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<string, MarkerBinding> pair in markers)
+            {
+                MarkerBinding marker = pair.Value;
+                marker.Image.rectTransform.anchoredPosition = liveMapRenderer.LatLonToViewportLocal(
+                    marker.Latitude,
+                    marker.Longitude);
+            }
+
+            if (lastUserLocation.IsValid)
+            {
+                bool visible = liveMapRenderer.IsInViewport(
+                    lastUserLocation.Latitude,
+                    lastUserLocation.Longitude,
+                    24f);
+                userMarker.gameObject.SetActive(visible);
+                if (visible)
+                {
+                    userMarker.rectTransform.anchoredPosition = liveMapRenderer.LatLonToViewportLocal(
+                        lastUserLocation.Latitude,
+                        lastUserLocation.Longitude);
+                }
+            }
+        }
+
+        private void ReparentMarkerToOverlay(Image marker)
+        {
+            marker.rectTransform.SetParent(markerRoot, false);
+            marker.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            marker.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            marker.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            marker.rectTransform.localScale = Vector3.one;
+        }
+
+        private static bool ShouldEnableLiveVectorMap(MapConfig mapConfig)
+        {
+            if (mapConfig == null || !mapConfig.enableLiveVectorMap)
+            {
+                return false;
+            }
+
+#if UNITY_EDITOR
+            return true;
+#else
+            return Debug.isDebugBuild || mapConfig.allowLiveVectorMapInRelease;
+#endif
         }
 
         private static Color32 MarkerColor(SpotRuntimeState state)
@@ -536,6 +808,11 @@ namespace PixelRoad.UI
             Canvas canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
             if (canvas != null)
             {
+                if (canvas.GetComponent<GraphicRaycaster>() == null)
+                {
+                    canvas.gameObject.AddComponent<GraphicRaycaster>();
+                }
+
                 return canvas;
             }
 
@@ -547,6 +824,51 @@ namespace PixelRoad.UI
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             scaler.matchWidthOrHeight = 0.5f;
             return canvas;
+        }
+
+        private static void EnsureUiInput(Canvas canvas)
+        {
+            if (canvas != null && canvas.GetComponent<GraphicRaycaster>() == null)
+            {
+                canvas.gameObject.AddComponent<GraphicRaycaster>();
+            }
+
+            EventSystem eventSystem = UnityEngine.Object.FindFirstObjectByType<EventSystem>();
+            if (eventSystem == null)
+            {
+                GameObject eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
+                eventSystem = eventSystemObject.GetComponent<EventSystem>();
+            }
+
+            eventSystem.enabled = true;
+#if ENABLE_INPUT_SYSTEM
+            InputSystemUIInputModule inputModule = eventSystem.GetComponent<InputSystemUIInputModule>();
+            if (inputModule == null)
+            {
+                inputModule = eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
+            }
+
+            if (inputModule.actionsAsset == null
+                || inputModule.point == null
+                || inputModule.point.action == null
+                || inputModule.leftClick == null
+                || inputModule.leftClick.action == null
+                || inputModule.scrollWheel == null
+                || inputModule.scrollWheel.action == null)
+            {
+                inputModule.AssignDefaultActions();
+            }
+
+            inputModule.enabled = true;
+#else
+            StandaloneInputModule inputModule = eventSystem.GetComponent<StandaloneInputModule>();
+            if (inputModule == null)
+            {
+                inputModule = eventSystem.gameObject.AddComponent<StandaloneInputModule>();
+            }
+
+            inputModule.enabled = true;
+#endif
         }
 
         private static GameObject CreateObject(string name, Transform parent)
@@ -621,11 +943,15 @@ namespace PixelRoad.UI
         {
             public readonly Image Image;
             public readonly Button Button;
+            public readonly double Latitude;
+            public readonly double Longitude;
 
-            public MarkerBinding(Image image, Button button)
+            public MarkerBinding(Image image, Button button, double latitude, double longitude)
             {
                 Image = image;
                 Button = button;
+                Latitude = latitude;
+                Longitude = longitude;
             }
         }
 

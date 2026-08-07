@@ -10,8 +10,24 @@
     "eastLon": 127.15231855246095
   },
   "defaultUnlockRadiusMeters": 50,
-  "enablePixelFilter": true,
+  "enablePixelFilter": false,
   "pixelBlockSize": 4,
+  "enableLiveVectorMap": true,
+  "allowLiveVectorMapInRelease": false,
+  "vectorTileProviderId": "osm-shortbread-development",
+  "vectorTileSchema": "shortbread_v1",
+  "vectorTileUrlTemplate": "https://vector.openstreetmap.org/shortbread_v1/{z}/{x}/{y}.mvt",
+  "vectorTileMinZoom": 5,
+  "vectorTileMaxZoom": 14,
+  "initialMapZoom": 15,
+  "minimumMapZoom": 5,
+  "maximumMapZoom": 18,
+  "maxConcurrentTileRequests": 4,
+  "maxMemoryTileCount": 48,
+  "maxDiskCacheMegabytes": 64,
+  "enableDiskTileCache": true,
+  "mapAttribution": "© OpenStreetMap contributors",
+  "mapAttributionUrl": "https://www.openstreetmap.org/copyright",
   "enableBackgroundUnlock": false,
   "maxActiveGeofences": 100,
   "desiredAccuracyMeters": 15,
@@ -20,5 +36,5 @@
   "editorStartLongitude": 127.039093501609,
   "editorMoveSpeedMetersPerSecond": 250,
   "editorFastMoveMultiplier": 4,
-  "editorFollowSimulatedLocation": true
+  "editorFollowSimulatedLocation": false
 }

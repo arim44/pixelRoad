@@ -11,6 +11,9 @@ namespace PixelRoad.UI
 {
     public sealed class PixelRoadMapInput : MonoBehaviour, IDragHandler, IScrollHandler
     {
+        private const float ScrollZoomInFactor = 1.25f;
+        private const float ScrollZoomOutFactor = 1f / ScrollZoomInFactor;
+
         public event Action<Vector2> Dragged;
         public event Action<float, Vector2> Zoomed;
 
@@ -23,8 +26,28 @@ namespace PixelRoad.UI
 
         public void OnScroll(PointerEventData eventData)
         {
-            float zoomFactor = 1f + eventData.scrollDelta.y * 0.12f;
+            float zoomFactor = ScrollDeltaToZoomFactor(eventData.scrollDelta.y);
+            if (Mathf.Approximately(zoomFactor, 1f))
+            {
+                return;
+            }
+
             Zoomed?.Invoke(zoomFactor, eventData.position);
+        }
+
+        public static float ScrollDeltaToZoomFactor(float scrollDeltaY)
+        {
+            if (scrollDeltaY > 0f)
+            {
+                return ScrollZoomInFactor;
+            }
+
+            if (scrollDeltaY < 0f)
+            {
+                return ScrollZoomOutFactor;
+            }
+
+            return 1f;
         }
 
         private void Update()

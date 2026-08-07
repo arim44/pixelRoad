@@ -4,7 +4,19 @@
 
 - `Assets/Resources/PixelRoad/Maps/gyeongbokgung_demo.png` is a hand-made, label-free schematic placeholder map generated for development. It is not derived from OpenStreetMap or another external map provider.
 - `Assets/Resources/PixelRoad/Maps/gyeongbokgung_osm_label_free.png` is a label-free static map rendered from OpenStreetMap data via Overpass API. It contains roads, railways, water, green areas, and land-use polygons, but no text labels or POI icons.
-- `Assets/Resources/PixelRoad/spots.csv` contains manually written sample points around Gyeongbokgung for MVP testing.
+- `Assets/Resources/PixelRoad/Maps/gangnam_osm_label_free.png` is the active label-free static OSM-derived map and is retained as the offline and contest-compliance fallback.
+- `Assets/Resources/PixelRoad/spots.csv` contains manually curated demo points in Gangnam, Munjeong, and Bupyeong.
+
+## Curated Munjeong and Bupyeong landmarks
+
+Four landmarks near Munjeong Station and Bupyeong Station were added on 2026-08-07:
+
+- Garden Five Life: OpenStreetMap way `170052586`; the facility and address were cross-checked against the [official Songpa-gu tourism page](https://www.songpa.go.kr/culture/detailInfo.do?key=5111&rcpp=6&resrceCd=TR0180-1002536&sc1=TR0180).
+- Seoul Eastern District Court: OpenStreetMap way `471318814`; its current address and proximity to Munjeong Station were cross-checked against the [official court location page](https://sldongbu.scourt.go.kr/info/location/new/LocationViewAction.work?bub_cd=000211).
+- Bupyeong Modoo Mall: OpenStreetMap node `4636778093`; the name, location at Bupyeong Station, and facility description were cross-checked against [VISITKOREA](https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=70941).
+- Bupyeong Culture Street: OpenStreetMap way `457217779`; its current market listing and role in the shopping district were cross-checked against the [official Bupyeong-gu market guide](https://www.icbp.go.kr/main/life/economy/market.jsp) and [walking-tour guide](https://www.icbp.go.kr/tour/info/course_shopping.jsp).
+
+Coordinates were manually retrieved from OpenStreetMap through Nominatim on 2026-08-07 and are stored directly in the CSV; the application does not call a geocoding service at runtime. The Bupyeong Modoo Mall point deliberately uses its accessible Exit 18 as the unlock anchor because the underground complex has no single surface center. OpenStreetMap attribution is already shown in the map UI and documented below. These four points are outside the bundled Gangnam static-map bounds, so they are shown geographically only when the approved live vector-map path is available. They remain listed in the codex and can still be unlocked by real geographic distance.
 
 ## Generated OSM map record
 
@@ -30,20 +42,37 @@
 - Visual rule: no map text labels, no provider POI icons
 - Attribution: © OpenStreetMap contributors
 
-## Recommended production map workflow
+## Live vector-map validation and submission decision
 
-For the contest demo, generate a label-free static map PNG from an OSM-based provider that explicitly allows static image storage. Do not bulk-download tiles from `tile.openstreetmap.org`.
+- OSM Shortbread-based vector data is the current technical-validation target for viewport loading, rendering, caching, and smooth/pixel output tests.
+- Development endpoint: `https://vector.openstreetmap.org/shortbread_v1/{z}/{x}/{y}.mvt`.
+- Service policy reviewed: `https://operations.osmfoundation.org/policies/vector/` (2026-08-07).
+- Data licence/attribution: `https://www.openstreetmap.org/copyright` (ODbL; `© OpenStreetMap contributors`).
+- Runtime implementation: visible tiles only, center-priority queue, cancellation after a tile leaves the viewport, at most four concurrent requests by default, HTTP expiry/ETag/Last-Modified-aware disk cache, and no background prefetch or offline-download action.
+- The renderer selects only label-free land, site, water, road, rail, and boundary layers. Labels, place names, and provider POI symbols are not rendered.
+- Smooth mode renders the vector map to a map-only full-resolution RenderTexture. Pixel mode renders that same map layer to a reduced RenderTexture with point sampling. Markers, attribution, and the rest of the UI stay outside both outputs.
+- This validation target is not the approved contest submission provider. The production provider, endpoint, service plan, cache policy, and required attribution remain undecided until the official contest rules and provider terms are available.
+- The MVT/PBF decoder, triangulation, mesh builder, tile selection, and cache are implemented in project source; no external vector-tile decoding or rendering package was added.
+- `allowLiveVectorMapInRelease` remains `false`, and non-development builds compile out the live requester unless `PIXELROAD_LIVE_VECTOR_MAP` is also deliberately defined. Both release gates must be approved for live submission use.
+- The bundled static PNG remains required as an offline fallback and as the safe path if contest rules disallow external APIs or an internet-dependent demo.
+- Do not use `tile.openstreetmap.org` or Overpass as a drag-driven production tile backend.
 
-Recommended option:
+Before approving a submission provider, record:
 
-- Geoapify Static Maps API, with a custom no-label/no-POI style.
-- Record the API URL, creation date, style settings, bounding box, and attribution here.
+- Provider and dataset/style name and version
+- Endpoint and access date, without committing secrets
+- Mobile-app, contest-distribution, caching, retention, quota, and rate-limit terms
+- Geographic coverage and offline/failure behavior
+- Required OpenStreetMap, provider, renderer, and dataset attribution
+- Privacy impact when tile requests follow the user's location
 
 Required attribution checklist:
 
 - OpenStreetMap contributors
-- Provider name, for example Geoapify
-- Any renderer or tile dataset required by the selected provider, for example OpenMapTiles if applicable
+- Selected provider name
+- Any renderer, style, or tile dataset required by the selected provider
+
+See `docs/CONTEST_COMPLIANCE.md` for the complete review gates. The official contest rules are not currently present in this repository, so this provider decision remains blocked.
 
 ## BBox coordinate contract
 
