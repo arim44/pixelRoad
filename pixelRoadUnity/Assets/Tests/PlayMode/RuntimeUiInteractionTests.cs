@@ -18,7 +18,6 @@ namespace PixelRoad.Tests.PlayMode
 
         private Type runtimeViewType;
         private object runtimeView;
-        private Texture2D mapTexture;
         private GameObject canvasObject;
         private GameObject eventSystemObject;
         private bool hadPixelPreference;
@@ -52,17 +51,16 @@ namespace PixelRoad.Tests.PlayMode
             SetPublicField(config, "allowLiveVectorMapInRelease", false);
             SetPublicField(config, "enablePixelFilter", false);
 
-            mapTexture = new Texture2D(128, 128, TextureFormat.RGBA32, false)
-            {
-                name = "Runtime UI Regression Map",
-                filterMode = FilterMode.Bilinear
-            };
-
             MethodInfo create = runtimeViewType.GetMethod(
                 "Create",
                 BindingFlags.Public | BindingFlags.Static);
             Assert.That(create, Is.Not.Null);
-            runtimeView = create.Invoke(null, new[] { config, mapTexture });
+
+            // 정적 지도 폴백이 없으므로, 라이브 지도를 끈 구성은 의도적으로 오류 로그를 남긴다.
+            LogAssert.Expect(
+                LogType.Error,
+                "[PixelRoad] 라이브 벡터 지도를 사용할 수 없습니다: map_config.json 의 enableLiveVectorMap 이 false 입니다.");
+            runtimeView = create.Invoke(null, new[] { config });
             Assert.That(runtimeView, Is.Not.Null);
 
             Canvas canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
@@ -81,7 +79,6 @@ namespace PixelRoad.Tests.PlayMode
         public IEnumerator TearDown()
         {
             DestroyRuntimeSprites(canvasObject);
-            DestroyPrivateUnityObject("pixelMaterial");
             DestroyPrivateUnityObject("pixelFont");
 
             if (canvasObject != null)
@@ -92,11 +89,6 @@ namespace PixelRoad.Tests.PlayMode
             if (eventSystemObject != null)
             {
                 UnityEngine.Object.Destroy(eventSystemObject);
-            }
-
-            if (mapTexture != null)
-            {
-                UnityEngine.Object.Destroy(mapTexture);
             }
 
             if (hadPixelPreference)
@@ -137,6 +129,13 @@ namespace PixelRoad.Tests.PlayMode
             AssertInputActionAssigned(inputModule, "scrollWheel");
             Assert.That(FindFirstComponentNamed("PixelRoad.Mapping.LiveVectorMapRenderer"), Is.Null,
                 "This regression test must stay network-free when live vector maps are disabled.");
+            Assert.That((bool)ReadPublicProperty(runtimeView, "IsMapAvailable"), Is.False,
+                "No live map renderer means the view must report the map as unavailable.");
+
+            Transform mapNotice = FindRequiredTransform("MapNotice");
+            Assert.That(mapNotice.gameObject.activeSelf, Is.True,
+                "The map notice must explain why no map is drawn once the static fallback is gone.");
+            Assert.That(ReadChildText(mapNotice.gameObject), Does.Contain("지도를 표시할 수 없습니다"));
 
             bool codexRequested = false;
             Action codexHandler = () =>
@@ -159,38 +158,41 @@ namespace PixelRoad.Tests.PlayMode
             Component pixelToggle = FindRequiredComponent("PixelToggle", "UnityEngine.UI.Button");
             Assert.That(ReadChildText(pixelToggle.gameObject), Is.EqualTo("픽셀 OFF"));
             Assert.That(ReadPrivateBool("pixelFilterEnabled"), Is.False);
-            Assert.That(mapTexture.filterMode, Is.EqualTo(FilterMode.Bilinear));
 
             InvokeButton("PixelToggle");
             yield return null;
             Assert.That(ReadChildText(pixelToggle.gameObject), Is.EqualTo("픽셀 ON"));
             Assert.That(ReadPrivateBool("pixelFilterEnabled"), Is.True);
-            Assert.That(mapTexture.filterMode, Is.EqualTo(FilterMode.Point));
 
             InvokeButton("PixelToggle");
             yield return null;
             Assert.That(ReadChildText(pixelToggle.gameObject), Is.EqualTo("픽셀 OFF"));
             Assert.That(ReadPrivateBool("pixelFilterEnabled"), Is.False);
-            Assert.That(mapTexture.filterMode, Is.EqualTo(FilterMode.Bilinear));
 
-            Transform mapContent = FindRequiredTransform("MapContent");
-            float initialScale = mapContent.localScale.x;
+            // 지도가 없어도 줌 버튼이 예외 없이 동작해야 한다(라이브 렌더러로만 위임된다).
             InvokeButton("ZoomIn");
             yield return null;
-            float zoomedInScale = mapContent.localScale.x;
-            Assert.That(zoomedInScale, Is.GreaterThan(initialScale),
-                "Zoom In did not increase the fallback map scale.");
-
             InvokeButton("ZoomOut");
             yield return null;
-            float zoomedOutScale = mapContent.localScale.x;
-            Assert.That(zoomedOutScale, Is.LessThan(zoomedInScale),
-                "Zoom Out did not decrease the fallback map scale.");
 
             object spotState = CreateSpotState();
             MethodInfo addSpotMarker = runtimeViewType.GetMethod("AddSpotMarker");
             Assert.That(addSpotMarker, Is.Not.Null);
             addSpotMarker.Invoke(runtimeView, new[] { spotState, null });
+            yield return null;
+
+            Transform marker = FindRequiredTransform("Spot_runtime_ui_spot");
+            Assert.That(marker.parent.name, Is.EqualTo("MapMarkerOverlay"),
+                "Spot markers must live on the live-map marker overlay.");
+            Assert.That(
+                FindComponentNamed(marker.gameObject, "PixelRoad.UI.MapMarkerTapTarget"),
+                Is.Not.Null,
+                "Spot markers must use MapMarkerTapTarget so taps survive the map pan drag handler.");
+            Assert.That(FindComponentNamed(marker.gameObject, "UnityEngine.UI.Button"), Is.Null,
+                "A plain Button on a marker loses its click to the viewport drag handler on touch devices.");
+            Assert.That(marker.gameObject.activeSelf, Is.False,
+                "Without a live map there is no projection, so markers must stay hidden.");
+
             InvokeView("SetCodexVisible", true);
             Assert.That((bool)InvokeView("IsCodexVisible"), Is.True);
 

@@ -47,14 +47,7 @@ namespace PixelRoad.Runtime
                 yield break;
             }
 
-            Texture2D mapTexture = Resources.Load<Texture2D>(config.mapImageResourcePath);
-            if (mapTexture == null)
-            {
-                Debug.LogError("[PixelRoad] Map texture not found: " + config.mapImageResourcePath);
-                yield break;
-            }
-
-            view = PixelRoadRuntimeView.Create(config, mapTexture);
+            view = PixelRoadRuntimeView.Create(config);
             view.CodexRequested += ToggleCodex;
             for (int i = 0; i < spots.Count; i++)
             {

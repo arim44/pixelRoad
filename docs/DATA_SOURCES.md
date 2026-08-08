@@ -2,10 +2,14 @@
 
 ## Demo data included in this repository
 
-- `Assets/Resources/PixelRoad/Maps/gyeongbokgung_demo.png` is a hand-made, label-free schematic placeholder map generated for development. It is not derived from OpenStreetMap or another external map provider.
-- `Assets/Resources/PixelRoad/Maps/gyeongbokgung_osm_label_free.png` is a label-free static map rendered from OpenStreetMap data via Overpass API. It contains roads, railways, water, green areas, and land-use polygons, but no text labels or POI icons.
-- `Assets/Resources/PixelRoad/Maps/gangnam_osm_label_free.png` is the active label-free static OSM-derived map and is retained as the offline and contest-compliance fallback.
 - `Assets/Resources/PixelRoad/spots.csv` contains manually curated demo points in Gangnam, Munjeong, and Bupyeong.
+- `Assets/Resources/PixelRoad/Icons/` holds optional spot marker sprites. Names are matched against the CSV `icon` and `category` columns; see the folder README for the fallback order.
+
+### Static PNG maps removed on 2026-08-08
+
+The bundled static PNG maps under `Assets/Resources/PixelRoad/Maps/` were deleted and the runtime no longer loads a map image. The live vector map is now the only map surface, and `mapImageResourcePath` was removed from `map_config.json`. The generation records below are kept for provenance of the deleted files.
+
+When no live map is available, the app now shows an on-screen notice instead of a fallback image, keeps the codex usable, and hides spot markers because no projection exists. See `docs/CONTEST_COMPLIANCE.md` for the effect on offline judging.
 
 ## Curated Munjeong and Bupyeong landmarks
 
@@ -16,7 +20,7 @@ Four landmarks near Munjeong Station and Bupyeong Station were added on 2026-08-
 - Bupyeong Modoo Mall: OpenStreetMap node `4636778093`; the name, location at Bupyeong Station, and facility description were cross-checked against [VISITKOREA](https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=70941).
 - Bupyeong Culture Street: OpenStreetMap way `457217779`; its current market listing and role in the shopping district were cross-checked against the [official Bupyeong-gu market guide](https://www.icbp.go.kr/main/life/economy/market.jsp) and [walking-tour guide](https://www.icbp.go.kr/tour/info/course_shopping.jsp).
 
-Coordinates were manually retrieved from OpenStreetMap through Nominatim on 2026-08-07 and are stored directly in the CSV; the application does not call a geocoding service at runtime. The Bupyeong Modoo Mall point deliberately uses its accessible Exit 18 as the unlock anchor because the underground complex has no single surface center. OpenStreetMap attribution is already shown in the map UI and documented below. These four points are outside the bundled Gangnam static-map bounds, so they are shown geographically only when the approved live vector-map path is available. They remain listed in the codex and can still be unlocked by real geographic distance.
+Coordinates were manually retrieved from OpenStreetMap through Nominatim on 2026-08-07 and are stored directly in the CSV; the application does not call a geocoding service at runtime. The Bupyeong Modoo Mall point deliberately uses its accessible Exit 18 as the unlock anchor because the underground complex has no single surface center. OpenStreetMap attribution is already shown in the map UI and documented below. Since the static PNG maps were removed, every point is shown geographically only while the live vector map is available. All points remain listed in the codex and can still be unlocked by real geographic distance.
 
 ## Generated OSM map record
 
@@ -54,7 +58,7 @@ Coordinates were manually retrieved from OpenStreetMap through Nominatim on 2026
 - This validation target is not the approved contest submission provider. The production provider, endpoint, service plan, cache policy, and required attribution remain undecided until the official contest rules and provider terms are available.
 - The MVT/PBF decoder, triangulation, mesh builder, tile selection, and cache are implemented in project source; no external vector-tile decoding or rendering package was added.
 - `allowLiveVectorMapInRelease` remains `false`, and non-development builds compile out the live requester unless `PIXELROAD_LIVE_VECTOR_MAP` is also deliberately defined. Both release gates must be approved for live submission use.
-- The bundled static PNG remains required as an offline fallback and as the safe path if contest rules disallow external APIs or an internet-dependent demo.
+- The static PNG fallback was removed on 2026-08-08, so there is no offline map path. If contest rules disallow external APIs or an internet-dependent demo, a map source must be re-added before submission.
 - Do not use `tile.openstreetmap.org` or Overpass as a drag-driven production tile backend.
 
 Before approving a submission provider, record:
@@ -76,7 +80,7 @@ See `docs/CONTEST_COMPLIANCE.md` for the complete review gates. The official con
 
 ## BBox coordinate contract
 
-The map image is treated as a north-up WebMercator image. `map_config.json` must include the exact latitude/longitude bounds of the PNG:
+`map_config.json` still requires a valid `bounds` block, but it no longer describes a map image:
 
 ```json
 {
@@ -89,4 +93,6 @@ The map image is treated as a north-up WebMercator image. `map_config.json` must
 }
 ```
 
-Marker placement uses BBox/WebMercator. Unlocking uses real geographic distance, not pixel distance.
+It should cover the area the spots span. The app uses its center latitude to size the unlock spatial-index grid and refuses to start if the block is invalid.
+
+Marker placement now comes from the live vector map's slippy-map projection. Unlocking uses real geographic distance, not pixel distance.

@@ -8,12 +8,15 @@ This document is a review gate, not a statement that the project is already comp
 
 ## Map implementation decision
 
-- The current conservative fallback is the bundled, label-free static PNG map documented in `docs/DATA_SOURCES.md`.
+- **2026-08-08 change: the static PNG fallback was removed and the live vector map is now the only map surface.** `mapImageResourcePath` was deleted from `map_config.json`, and `PixelRoadApp` no longer loads a map texture. This was an explicit product decision and it **reopens** the offline-demo gate recorded below.
+  - When the live map is unavailable, the app starts, shows an on-screen reason, logs an error, and keeps the codex and unlock logic usable, but no map and no spot markers are drawn.
+  - The release gates were intentionally left untouched: a non-development build still needs both `allowLiveVectorMapInRelease: true` and the `PIXELROAD_LIVE_VECTOR_MAP` scripting symbol, so an offline-review APK now has no map at all.
+  - Before submission, either approve a live provider for release use or re-introduce an offline map source.
 - A provider-swappable, Shortbread-compatible live MVT path is implemented for technical validation. The current development configuration points to OSM Shortbread and is used to test viewport tile selection, vector rendering, caching, and optional pixel output. It is not the approved contest submission provider.
 - The submission provider, endpoint, service plan, and permitted cache policy remain undecided until the official contest rules and the provider terms have been reviewed together.
 - The MVT/PBF decoder, mesh builder, viewport selector, and cache are project source code and add no new runtime package. The data provider still must pass the gates below before it is enabled in a submission release.
 - `allowLiveVectorMapInRelease` is `false`. Editor and development builds may validate live tiles, while a non-development build compiles out the requester unless `PIXELROAD_LIVE_VECTOR_MAP` is explicitly defined. Both gates require approval before a live submission.
-- The app must retain a static PNG fallback so that it can still demonstrate its core flow when the judging environment is offline, the provider is unavailable, or contest rules prohibit an external service.
+- ~~The app must retain a static PNG fallback so that it can still demonstrate its core flow when the judging environment is offline, the provider is unavailable, or contest rules prohibit an external service.~~ **Superseded on 2026-08-08 and unresolved.** The fallback no longer exists, so an offline judging environment currently sees no map. Re-adding an offline map source or approving a live provider for release remains an open submission blocker.
 
 ## Mandatory review gates
 
@@ -34,7 +37,7 @@ Status: **Blocked — official source not present.**
 - Confirm request quotas, rate limits, attribution requirements, retention limits, geographic coverage, and expected service availability.
 - Use HTTPS and avoid embedding an unrestricted secret in the client. Document any app/package restrictions, proxy, or key-rotation process.
 - Fetch only viewport-required data, cancel stale requests, cap retries, and provide clear loading/error states.
-- Test the complete judging flow with no network and with provider errors; the static PNG fallback must remain usable.
+- Test the complete judging flow with no network and with provider errors. The static PNG fallback was removed on 2026-08-08, so this test currently only verifies that the app degrades cleanly (notice shown, codex usable, no crash) rather than that a map is still shown.
 - Do not use `tile.openstreetmap.org` or Overpass as a drag-driven production tile backend.
 
 Status: **Pending — submission provider is not selected.**

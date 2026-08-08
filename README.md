@@ -55,19 +55,21 @@ Spot CSV:
 Assets/Resources/PixelRoad/spots.csv
 ```
 
-Map PNG:
+Spot icons (optional):
 
 ```text
-Assets/Resources/PixelRoad/Maps/gangnam_osm_label_free.png
+Assets/Resources/PixelRoad/Icons/
 ```
 
-The active sample PNG is a label-free OSM-based static map centered near `37.4969698129663, 127.039093501609` with an approximately 10km radius coverage.
+PNG names are matched against the CSV `icon` column, then `category`, then `default`; anything unmatched falls back to a generated diamond marker. See the folder README for details.
+
+The bundled static map PNGs were removed on 2026-08-08. The live vector map is now the only map surface, and `map_config.json` no longer has `mapImageResourcePath`.
 
 ## Live vector map
 
 `map_config.json` enables a provider-swappable, Shortbread-compatible MVT renderer for Editor and development validation. It requests only tiles intersecting the current viewport as the user drags or zooms, cancels obsolete requests, and keeps a bounded HTTP-aware cache. Labels and provider POI symbols are excluded from the rendered layer.
 
-The current endpoint is the OSMF Shortbread service for technical validation only. `allowLiveVectorMapInRelease` is intentionally `false`, and non-development builds compile the live requester out unless `PIXELROAD_LIVE_VECTOR_MAP` is explicitly defined. A normal release/submission build therefore keeps using the PNG until the contest rules and production provider terms are approved. Both the compile symbol and config gate must be approved before a live release.
+The current endpoint is the OSMF Shortbread service for technical validation only. `allowLiveVectorMapInRelease` is intentionally `false`, and non-development builds compile the live requester out unless `PIXELROAD_LIVE_VECTOR_MAP` is explicitly defined. Because the static PNG fallback is gone, a normal release/submission build currently shows no map at all — it starts, explains why on screen, and keeps the codex usable. Both the compile symbol and the config gate must be approved before a live release.
 
 Smooth mode uses a full-resolution map-only RenderTexture. Pixel mode uses a lower-resolution, point-sampled map RenderTexture. The attribution, spot markers, GPS marker, and controls are separate UI layers and therefore remain readable in both modes.
 

@@ -21,18 +21,34 @@ namespace PixelRoad.UI
 
         public void OnDrag(PointerEventData eventData)
         {
-            Dragged?.Invoke(eventData.delta);
+            ForwardDrag(eventData.delta);
         }
 
         public void OnScroll(PointerEventData eventData)
         {
-            float zoomFactor = ScrollDeltaToZoomFactor(eventData.scrollDelta.y);
+            ForwardScroll(eventData.scrollDelta, eventData.position);
+        }
+
+        /// <summary>
+        /// 마커처럼 자체 IDragHandler를 가진 자식이 가로챈 드래그를 지도로 넘길 때 사용한다.
+        /// </summary>
+        public void ForwardDrag(Vector2 delta)
+        {
+            Dragged?.Invoke(delta);
+        }
+
+        /// <summary>
+        /// 마커처럼 자체 IScrollHandler를 가진 자식이 가로챈 휠 입력을 지도로 넘길 때 사용한다.
+        /// </summary>
+        public void ForwardScroll(Vector2 scrollDelta, Vector2 screenPosition)
+        {
+            float zoomFactor = ScrollDeltaToZoomFactor(scrollDelta.y);
             if (Mathf.Approximately(zoomFactor, 1f))
             {
                 return;
             }
 
-            Zoomed?.Invoke(zoomFactor, eventData.position);
+            Zoomed?.Invoke(zoomFactor, screenPosition);
         }
 
         public static float ScrollDeltaToZoomFactor(float scrollDeltaY)
