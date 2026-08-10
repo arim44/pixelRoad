@@ -18,6 +18,7 @@ namespace PixelRoad.UI
     public sealed class PixelRoadRuntimeView
     {
         private const string PixelModePreferenceKey = "PixelRoad.MapPixelMode";
+        private const string UiPrefabResourcePath = "PixelRoad/UI/PixelRoadUIRoot";
 
         /// <summary>유저 마커를 화면 가장자리에서 유지할 여유(px).</summary>
         private const float UserMarkerViewportPadding = 24f;
@@ -57,6 +58,7 @@ namespace PixelRoad.UI
         private readonly Button pixelToggleButton;
         private readonly TMP_Text pixelToggleText;
         private readonly TMP_FontAsset pixelFont;
+        private readonly PixelRoadUiBindings uiBindings;
         private bool pixelFilterEnabled;
         private bool mapRendered;
         private GeoLocationSample lastUserLocation;
@@ -78,34 +80,43 @@ namespace PixelRoad.UI
 
             Canvas canvas = GetOrCreateCanvas();
             EnsureUiInput(canvas);
-            pixelFont = CreateRuntimePixelFont();
-            viewport = CreateRect("MapViewport", canvas.transform);
-            Stretch(viewport);
-            viewport.gameObject.AddComponent<RectMask2D>();
-            Image viewportBackground = viewport.gameObject.AddComponent<Image>();
-            viewportBackground.color = new Color32(24, 22, 19, 255);
+            pixelFont = null;
 
-            mapInput = viewport.gameObject.AddComponent<PixelRoadMapInput>();
+            uiBindings = UnityEngine.Object.FindFirstObjectByType<PixelRoadUiBindings>(FindObjectsInactive.Include);
+            if (uiBindings == null)
+            {
+                GameObject uiPrefab = Resources.Load<GameObject>(UiPrefabResourcePath);
+                if (uiPrefab == null)
+                {
+                    throw new InvalidOperationException(
+                        "Missing Resources/" + UiPrefabResourcePath + ".prefab. "
+                        + "Run Tools > Pixel Road > Rebuild UI Prefabs in the Unity Editor.");
+                }
+
+                GameObject uiObject = UnityEngine.Object.Instantiate(uiPrefab, canvas.transform, false);
+                uiObject.name = "PixelRoadUIRoot";
+                uiBindings = uiObject.GetComponent<PixelRoadUiBindings>();
+            }
+
+            uiBindings.ValidateReferences();
+            viewport = uiBindings.MapViewport;
+            liveMapImage = uiBindings.LiveMapImage;
+            markerRoot = uiBindings.MarkerRoot;
+            userMarker = uiBindings.UserMarker;
+            mapNoticeText = uiBindings.MapNoticeText;
+            statusText = uiBindings.StatusText;
+            progressText = uiBindings.ProgressText;
+            selectedNameText = uiBindings.SelectedNameText;
+            selectedDescriptionText = uiBindings.SelectedDescriptionText;
+            selectedDistanceText = uiBindings.SelectedDistanceText;
+            pixelToggleButton = uiBindings.PixelToggleButton;
+            pixelToggleText = uiBindings.PixelToggleText;
+            codexPanel = uiBindings.CodexPanel;
+            mapInput = uiBindings.MapInput;
+
             mapInput.Dragged += Pan;
             mapInput.Zoomed += ZoomAt;
-
-            liveMapImage = CreateObject("LiveVectorMap", viewport).AddComponent<RawImage>();
-            Stretch(liveMapImage.rectTransform);
-            liveMapImage.raycastTarget = false;
             liveMapImage.enabled = false;
-
-            markerRoot = CreateRect("MapMarkerOverlay", viewport);
-            Stretch(markerRoot);
-
-            mapNoticeText = CreateText("MapNotice", viewport, string.Empty, 20, TextAlignmentOptions.Center);
-            RectTransform noticeRect = mapNoticeText.rectTransform;
-            noticeRect.anchorMin = new Vector2(0.1f, 0.5f);
-            noticeRect.anchorMax = new Vector2(0.9f, 0.5f);
-            noticeRect.pivot = new Vector2(0.5f, 0.5f);
-            noticeRect.sizeDelta = new Vector2(0f, 120f);
-            noticeRect.anchoredPosition = Vector2.zero;
-            mapNoticeText.color = new Color32(246, 237, 217, 255);
-            mapNoticeText.raycastTarget = false;
             mapNoticeText.gameObject.SetActive(false);
 
             liveMapRenderer = CreateLiveMapRenderer(out string liveMapUnavailableReason);
@@ -115,53 +126,32 @@ namespace PixelRoad.UI
             }
 
             Sprite userIcon = iconLibrary.Load(config.userIconName);
-            userMarker = CreateMarkerImage(
-                "UserMarker",
-                markerRoot,
-                userIcon != null ? userIcon : GetShapeSprite(true, userMarkerSize, UserMarkerColor),
-                userMarkerSize);
+            userMarker.sprite = userIcon != null
+                ? userIcon
+                : GetShapeSprite(true, userMarkerSize, UserMarkerColor);
+            userMarker.rectTransform.sizeDelta = new Vector2(userMarkerSize, userMarkerSize);
+            userMarker.preserveAspect = true;
             userMarker.raycastTarget = false;
             userMarker.gameObject.SetActive(false);
 
-            RectTransform topBar = CreateTopBar(canvas.transform);
-            CreateCodexButton(topBar);
-            CreateTitle(topBar);
-            pixelToggleButton = CreatePixelToggle(topBar);
-            pixelToggleText = pixelToggleButton.GetComponentInChildren<TMP_Text>();
-            CreateZoomControls(canvas.transform);
+            uiBindings.TitleText.text = config.appTitle;
+            uiBindings.CodexButton.onClick.AddListener(() => CodexRequested?.Invoke());
+            pixelToggleButton.onClick.AddListener(TogglePixelFilter);
+            uiBindings.CodexCloseButton.onClick.AddListener(() => SetCodexVisible(false));
 
-            statusText = CreateText("StatusText", canvas.transform, "GPS", 18, TextAlignmentOptions.Left);
-            RectTransform statusRect = statusText.rectTransform;
-            statusRect.anchorMin = new Vector2(0f, 0f);
-            statusRect.anchorMax = new Vector2(1f, 0f);
-            statusRect.pivot = new Vector2(0.5f, 0f);
-            statusRect.sizeDelta = new Vector2(-32f, 28f);
-            statusRect.anchoredPosition = new Vector2(0f, 14f);
-            statusText.color = new Color32(246, 237, 217, 255);
+            uiBindings.AttributionText.text = string.IsNullOrWhiteSpace(config.mapAttribution)
+                ? "© OpenStreetMap contributors"
+                : config.mapAttribution;
+            if (!string.IsNullOrWhiteSpace(config.mapAttributionUrl))
+            {
+                uiBindings.AttributionButton.onClick.AddListener(
+                    () => Application.OpenURL(config.mapAttributionUrl));
+            }
+            else
+            {
+                uiBindings.AttributionButton.interactable = false;
+            }
 
-            CreateAttribution(canvas.transform);
-
-            RectTransform bottomPanel = CreateBottomPanel(canvas.transform);
-            selectedNameText = CreateText("SelectedName", bottomPanel, "거점을 선택하세요", 22, TextAlignmentOptions.Left);
-            selectedNameText.rectTransform.anchorMin = new Vector2(0f, 0.45f);
-            selectedNameText.rectTransform.anchorMax = new Vector2(0.68f, 1f);
-            selectedNameText.rectTransform.offsetMin = new Vector2(18f, 0f);
-            selectedNameText.rectTransform.offsetMax = new Vector2(-8f, -8f);
-
-            selectedDescriptionText = CreateText("SelectedDescription", bottomPanel, "지도 위 마커를 누르면 도감 정보가 열립니다.", 17, TextAlignmentOptions.Left);
-            selectedDescriptionText.rectTransform.anchorMin = new Vector2(0f, 0f);
-            selectedDescriptionText.rectTransform.anchorMax = new Vector2(0.72f, 0.55f);
-            selectedDescriptionText.rectTransform.offsetMin = new Vector2(18f, 10f);
-            selectedDescriptionText.rectTransform.offsetMax = new Vector2(-8f, -2f);
-
-            selectedDistanceText = CreateText("SelectedDistance", bottomPanel, "-", 18, TextAlignmentOptions.Right);
-            selectedDistanceText.rectTransform.anchorMin = new Vector2(0.72f, 0f);
-            selectedDistanceText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            selectedDistanceText.rectTransform.offsetMin = new Vector2(0f, 10f);
-            selectedDistanceText.rectTransform.offsetMax = new Vector2(-18f, -10f);
-
-            codexPanel = CreateCodexPanel(canvas.transform);
-            progressText = codexPanel.transform.Find("Window/Header/Progress").GetComponent<TMP_Text>();
             codexPanel.SetActive(false);
             UpdatePixelToggleText();
             ReportLiveMapAvailability(liveMapUnavailableReason);
@@ -250,7 +240,15 @@ namespace PixelRoad.UI
         public void AddSpotMarker(SpotRuntimeState state, Action<SpotRuntimeState> onClick)
         {
             Sprite icon = iconLibrary.Resolve(state.Definition.IconKey, state.Definition.Category);
-            Image marker = CreateMarkerImage("Spot_" + state.Definition.Id, markerRoot, icon, spotMarkerSize);
+            LandmarkMarkerView markerView = UnityEngine.Object.Instantiate(
+                uiBindings.LandmarkMarkerPrefab,
+                markerRoot,
+                false);
+            markerView.gameObject.name = "Spot_" + state.Definition.Id;
+            Image marker = markerView.Icon;
+            marker.sprite = icon;
+            marker.preserveAspect = true;
+            marker.rectTransform.sizeDelta = new Vector2(spotMarkerSize, spotMarkerSize);
             if (liveMapRenderer != null)
             {
                 marker.rectTransform.anchoredPosition = liveMapRenderer.LatLonToViewportLocal(
@@ -269,7 +267,7 @@ namespace PixelRoad.UI
 
             // Button 대신 MapMarkerTapTarget을 쓰는 이유는 해당 클래스 주석 참고.
             // 요약: 상위 뷰포트가 pointerDrag를 가져가면 모바일에서 Button.onClick이 취소된다.
-            MapMarkerTapTarget tapTarget = marker.gameObject.AddComponent<MapMarkerTapTarget>();
+            MapMarkerTapTarget tapTarget = markerView.TapTarget;
             tapTarget.Initialize(mapInput);
             tapTarget.Tapped += () => onClick?.Invoke(state);
 
@@ -377,239 +375,27 @@ namespace PixelRoad.UI
             }
         }
 
-        private RectTransform CreateTopBar(Transform parent)
-        {
-            RectTransform topBar = CreateRect("TopBar", parent);
-            topBar.anchorMin = new Vector2(0f, 1f);
-            topBar.anchorMax = new Vector2(1f, 1f);
-            topBar.pivot = new Vector2(0.5f, 1f);
-            topBar.sizeDelta = new Vector2(0f, 72f);
-            topBar.anchoredPosition = Vector2.zero;
-            Image background = topBar.gameObject.AddComponent<Image>();
-            background.color = new Color32(18, 17, 15, 238);
-            return topBar;
-        }
-
-        private void CreateCodexButton(RectTransform topBar)
-        {
-            Button button = CreateButton("CodexButton", topBar, "도감", new Vector2(92f, 48f));
-            RectTransform rect = button.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 0.5f);
-            rect.anchorMax = new Vector2(0f, 0.5f);
-            rect.pivot = new Vector2(0f, 0.5f);
-            rect.anchoredPosition = new Vector2(16f, 0f);
-            button.onClick.AddListener(() => CodexRequested?.Invoke());
-        }
-
-        private void CreateTitle(RectTransform topBar)
-        {
-            TMP_Text title = CreateText("Title", topBar, config.appTitle, 24, TextAlignmentOptions.Center);
-            RectTransform rect = title.rectTransform;
-            rect.anchorMin = new Vector2(0.24f, 0f);
-            rect.anchorMax = new Vector2(0.76f, 1f);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-        }
-
-        private Button CreatePixelToggle(RectTransform topBar)
-        {
-            Button button = CreateButton("PixelToggle", topBar, "픽셀", new Vector2(104f, 48f));
-            RectTransform rect = button.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(1f, 0.5f);
-            rect.anchorMax = new Vector2(1f, 0.5f);
-            rect.pivot = new Vector2(1f, 0.5f);
-            rect.anchoredPosition = new Vector2(-16f, 0f);
-            button.onClick.AddListener(TogglePixelFilter);
-            return button;
-        }
-
-        private void CreateZoomControls(Transform parent)
-        {
-            RectTransform controls = CreateRect("ZoomControls", parent);
-            controls.anchorMin = new Vector2(1f, 0.5f);
-            controls.anchorMax = new Vector2(1f, 0.5f);
-            controls.pivot = new Vector2(1f, 0.5f);
-            controls.sizeDelta = new Vector2(64f, 128f);
-            controls.anchoredPosition = new Vector2(-16f, 24f);
-
-            Button zoomIn = CreateButton("ZoomIn", controls, "+", new Vector2(56f, 56f));
-            RectTransform zoomInRect = zoomIn.GetComponent<RectTransform>();
-            zoomInRect.anchorMin = new Vector2(0.5f, 1f);
-            zoomInRect.anchorMax = new Vector2(0.5f, 1f);
-            zoomInRect.pivot = new Vector2(0.5f, 1f);
-            zoomInRect.anchoredPosition = Vector2.zero;
-            zoomIn.onClick.AddListener(() => ZoomAtViewportCenter(2f));
-
-            Button zoomOut = CreateButton("ZoomOut", controls, "-", new Vector2(56f, 56f));
-            RectTransform zoomOutRect = zoomOut.GetComponent<RectTransform>();
-            zoomOutRect.anchorMin = new Vector2(0.5f, 0f);
-            zoomOutRect.anchorMax = new Vector2(0.5f, 0f);
-            zoomOutRect.pivot = new Vector2(0.5f, 0f);
-            zoomOutRect.anchoredPosition = Vector2.zero;
-            zoomOut.onClick.AddListener(() => ZoomAtViewportCenter(0.5f));
-        }
-
-        private void CreateAttribution(Transform parent)
-        {
-            RectTransform panel = CreateRect("MapAttribution", parent);
-            panel.anchorMin = new Vector2(1f, 0f);
-            panel.anchorMax = new Vector2(1f, 0f);
-            panel.pivot = new Vector2(1f, 0f);
-            panel.sizeDelta = new Vector2(310f, 30f);
-            panel.anchoredPosition = new Vector2(-10f, 172f);
-            Image background = panel.gameObject.AddComponent<Image>();
-            background.color = new Color32(18, 17, 15, 210);
-
-            Button button = panel.gameObject.AddComponent<Button>();
-            button.transition = Selectable.Transition.None;
-            button.targetGraphic = background;
-            if (!string.IsNullOrWhiteSpace(config.mapAttributionUrl))
-            {
-                button.onClick.AddListener(() => Application.OpenURL(config.mapAttributionUrl));
-            }
-            else
-            {
-                button.interactable = false;
-            }
-
-            TMP_Text text = CreateText(
-                "Label",
-                panel,
-                string.IsNullOrWhiteSpace(config.mapAttribution)
-                    ? "© OpenStreetMap contributors"
-                    : config.mapAttribution,
-                13,
-                TextAlignmentOptions.Center);
-            Stretch(text.rectTransform);
-            text.color = new Color32(246, 237, 217, 255);
-        }
-
-        private RectTransform CreateBottomPanel(Transform parent)
-        {
-            RectTransform panel = CreateRect("SpotInfoPanel", parent);
-            panel.anchorMin = new Vector2(0f, 0f);
-            panel.anchorMax = new Vector2(1f, 0f);
-            panel.pivot = new Vector2(0.5f, 0f);
-            panel.sizeDelta = new Vector2(-24f, 118f);
-            panel.anchoredPosition = new Vector2(0f, 44f);
-            Image background = panel.gameObject.AddComponent<Image>();
-            background.color = new Color32(235, 222, 188, 246);
-            return panel;
-        }
-
-        private GameObject CreateCodexPanel(Transform parent)
-        {
-            RectTransform overlay = CreateRect("CodexPanel", parent);
-            Stretch(overlay);
-            Image overlayBackground = overlay.gameObject.AddComponent<Image>();
-            overlayBackground.color = new Color32(15, 14, 12, 230);
-
-            RectTransform window = CreateRect("Window", overlay);
-            window.anchorMin = new Vector2(0.08f, 0.08f);
-            window.anchorMax = new Vector2(0.92f, 0.92f);
-            window.pivot = new Vector2(0.5f, 0.5f);
-            window.offsetMin = Vector2.zero;
-            window.offsetMax = Vector2.zero;
-            Image windowBackground = window.gameObject.AddComponent<Image>();
-            windowBackground.color = new Color32(236, 224, 194, 255);
-
-            RectTransform header = CreateRect("Header", window);
-            header.anchorMin = new Vector2(0f, 1f);
-            header.anchorMax = new Vector2(1f, 1f);
-            header.pivot = new Vector2(0.5f, 1f);
-            header.sizeDelta = new Vector2(0f, 72f);
-            header.anchoredPosition = Vector2.zero;
-            Image headerBackground = header.gameObject.AddComponent<Image>();
-            headerBackground.color = new Color32(18, 17, 15, 255);
-
-            TMP_Text title = CreateText("Title", header, "수집 도감", 24, TextAlignmentOptions.Left);
-            title.rectTransform.anchorMin = new Vector2(0f, 0f);
-            title.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-            title.rectTransform.offsetMin = new Vector2(18f, 0f);
-            title.rectTransform.offsetMax = Vector2.zero;
-
-            TMP_Text progress = CreateText("Progress", header, "0 / 0", 20, TextAlignmentOptions.Right);
-            progress.rectTransform.anchorMin = new Vector2(0.5f, 0f);
-            progress.rectTransform.anchorMax = new Vector2(1f, 1f);
-            progress.rectTransform.offsetMin = Vector2.zero;
-            progress.rectTransform.offsetMax = new Vector2(-96f, 0f);
-
-            Button close = CreateButton("CloseButton", header, "X", new Vector2(56f, 44f));
-            RectTransform closeRect = close.GetComponent<RectTransform>();
-            closeRect.anchorMin = new Vector2(1f, 0.5f);
-            closeRect.anchorMax = new Vector2(1f, 0.5f);
-            closeRect.pivot = new Vector2(1f, 0.5f);
-            closeRect.anchoredPosition = new Vector2(-16f, 0f);
-            close.onClick.AddListener(() => SetCodexVisible(false));
-
-            ScrollRect scroll = CreateObject("Scroll", window).AddComponent<ScrollRect>();
-            RectTransform scrollRect = scroll.GetComponent<RectTransform>();
-            scrollRect.anchorMin = new Vector2(0f, 0f);
-            scrollRect.anchorMax = new Vector2(1f, 1f);
-            scrollRect.offsetMin = new Vector2(16f, 16f);
-            scrollRect.offsetMax = new Vector2(-16f, -88f);
-            scroll.viewport = scrollRect;
-            scroll.horizontal = false;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            Image scrollBackground = scroll.gameObject.AddComponent<Image>();
-            scrollBackground.color = new Color32(236, 224, 194, 255);
-            scroll.gameObject.AddComponent<RectMask2D>();
-
-            RectTransform content = CreateRect("Content", scrollRect);
-            content.anchorMin = new Vector2(0f, 1f);
-            content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f);
-            content.anchoredPosition = Vector2.zero;
-            GridLayoutGroup grid = content.gameObject.AddComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(294f, 168f);
-            grid.spacing = new Vector2(14f, 14f);
-            grid.padding = new RectOffset(4, 4, 4, 4);
-            ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            scroll.content = content;
-
-            return overlay.gameObject;
-        }
-
         private void CreateCodexCard(SpotRuntimeState state, Sprite icon, Action<SpotRuntimeState> onClick)
         {
-            RectTransform content = codexPanel.transform.Find("Window/Scroll/Content").GetComponent<RectTransform>();
-            Button card = CreateButton("Codex_" + state.Definition.Id, content, string.Empty, new Vector2(294f, 168f));
-            Image background = card.GetComponent<Image>();
-            background.color = new Color32(28, 25, 21, 255);
-            card.onClick.AddListener(() =>
+            LandmarkCardView cardView = UnityEngine.Object.Instantiate(
+                uiBindings.LandmarkCardPrefab,
+                uiBindings.CodexContent,
+                false);
+            cardView.gameObject.name = "Codex_" + state.Definition.Id;
+            cardView.Button.onClick.AddListener(() =>
             {
                 onClick?.Invoke(state);
                 SetCodexVisible(false);
             });
 
-            Image cardIcon = CreateMarkerImage("Icon", card.transform, icon, CodexIconSize);
-            cardIcon.raycastTarget = false;
-            cardIcon.rectTransform.anchorMin = new Vector2(0f, 1f);
-            cardIcon.rectTransform.anchorMax = new Vector2(0f, 1f);
-            cardIcon.rectTransform.pivot = new Vector2(0f, 1f);
-            cardIcon.rectTransform.anchoredPosition = new Vector2(14f, -14f);
-
-            TMP_Text name = CreateText("Name", card.transform, string.Empty, 19, TextAlignmentOptions.Left);
-            name.rectTransform.anchorMin = new Vector2(0f, 0.56f);
-            name.rectTransform.anchorMax = new Vector2(1f, 1f);
-            name.rectTransform.offsetMin = new Vector2(68f, 0f);
-            name.rectTransform.offsetMax = new Vector2(-12f, -12f);
-
-            TMP_Text category = CreateText("Category", card.transform, string.Empty, 15, TextAlignmentOptions.Right);
-            category.rectTransform.anchorMin = new Vector2(0.52f, 0.56f);
-            category.rectTransform.anchorMax = new Vector2(1f, 1f);
-            category.rectTransform.offsetMin = Vector2.zero;
-            category.rectTransform.offsetMax = new Vector2(-12f, -42f);
-            category.color = new Color32(94, 205, 162, 255);
-
-            TMP_Text description = CreateText("Description", card.transform, string.Empty, 15, TextAlignmentOptions.Left);
-            description.rectTransform.anchorMin = new Vector2(0f, 0f);
-            description.rectTransform.anchorMax = new Vector2(1f, 0.58f);
-            description.rectTransform.offsetMin = new Vector2(14f, 12f);
-            description.rectTransform.offsetMax = new Vector2(-14f, -8f);
-
-            codexCards[state.Definition.Id] = new CodexBinding(cardIcon, name, category, description, icon != null);
+            cardView.Icon.sprite = icon;
+            cardView.Icon.raycastTarget = false;
+            codexCards[state.Definition.Id] = new CodexBinding(
+                cardView.Icon,
+                cardView.NameText,
+                cardView.CategoryText,
+                cardView.DescriptionText,
+                icon != null);
         }
 
         private void TogglePixelFilter()
@@ -654,13 +440,6 @@ namespace PixelRoad.UI
             {
                 liveMapRenderer.ZoomAt(factor, screenPosition);
             }
-        }
-
-        private void ZoomAtViewportCenter(float factor)
-        {
-            Vector3 worldCenter = viewport.TransformPoint(viewport.rect.center);
-            Vector2 screenCenter = RectTransformUtility.WorldToScreenPoint(null, worldCenter);
-            ZoomAt(factor, screenCenter);
         }
 
         private void OnFirstLiveTileReady()
@@ -729,7 +508,7 @@ namespace PixelRoad.UI
 
         /// <summary>
         /// 해금 상태를 마커에 반영한다.
-        /// CSV 아이콘이 있으면 색만 바꾸고(잠김은 흐리게), 없으면 코드 생성 도형을 교체한다.
+        /// JSON의 thumbnail 아이콘이 있으면 색만 바꾸고(잠김은 흐리게), 없으면 코드 생성 도형을 교체한다.
         /// </summary>
         private void ApplyMarkerVisual(Image image, SpotRuntimeState state, bool hasIcon, int size)
         {
@@ -741,20 +520,6 @@ namespace PixelRoad.UI
 
             image.sprite = GetShapeSprite(false, size, MarkerColor(state));
             image.color = Color.white;
-        }
-
-        private Image CreateMarkerImage(string name, Transform parent, Sprite sprite, int size)
-        {
-            Image image = CreateObject(name, parent).AddComponent<Image>();
-            image.sprite = sprite;
-            image.color = Color.white;
-            image.preserveAspect = true;
-            RectTransform rect = image.rectTransform;
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(size, size);
-            return image;
         }
 
         /// <summary>
@@ -772,61 +537,6 @@ namespace PixelRoad.UI
             Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
             shapeSprites[key] = sprite;
             return sprite;
-        }
-
-        private Button CreateButton(string name, Transform parent, string label, Vector2 size)
-        {
-            Button button = CreateObject(name, parent).AddComponent<Button>();
-            Image image = button.gameObject.AddComponent<Image>();
-            image.color = new Color32(239, 228, 199, 255);
-            button.targetGraphic = image;
-            RectTransform rect = button.GetComponent<RectTransform>();
-            rect.sizeDelta = size;
-
-            if (!string.IsNullOrEmpty(label))
-            {
-                TMP_Text text = CreateText("Label", button.transform, label, 18, TextAlignmentOptions.Center);
-                Stretch(text.rectTransform);
-                text.color = new Color32(18, 17, 15, 255);
-            }
-
-            return button;
-        }
-
-        private TMP_Text CreateText(string name, Transform parent, string value, int size, TextAlignmentOptions alignment)
-        {
-            TextMeshProUGUI text = CreateObject(name, parent).AddComponent<TextMeshProUGUI>();
-            text.text = value;
-            text.fontSize = size;
-            text.alignment = alignment;
-            text.enableWordWrapping = true;
-            text.overflowMode = TextOverflowModes.Ellipsis;
-            text.color = new Color32(18, 17, 15, 255);
-            if (pixelFont != null)
-            {
-                text.font = pixelFont;
-            }
-
-            return text;
-        }
-
-        private TMP_FontAsset CreateRuntimePixelFont()
-        {
-            Font font = Resources.Load<Font>("PixelRoad/Fonts/Galmuri11");
-            if (font == null)
-            {
-                return null;
-            }
-
-            try
-            {
-                return TMP_FontAsset.CreateFontAsset(font);
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning("[PixelRoad] Failed to create Galmuri TMP font asset. Falling back to TMP default font. " + exception.Message);
-                return null;
-            }
         }
 
         private static Canvas GetOrCreateCanvas()
@@ -905,26 +615,6 @@ namespace PixelRoad.UI
 
             inputModule.enabled = true;
 #endif
-        }
-
-        private static GameObject CreateObject(string name, Transform parent)
-        {
-            GameObject gameObject = new GameObject(name, typeof(RectTransform));
-            gameObject.transform.SetParent(parent, false);
-            return gameObject;
-        }
-
-        private static RectTransform CreateRect(string name, Transform parent)
-        {
-            return CreateObject(name, parent).GetComponent<RectTransform>();
-        }
-
-        private static void Stretch(RectTransform rect)
-        {
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
         }
 
         private static Texture2D CreateDiamondTexture(int size, Color32 color)

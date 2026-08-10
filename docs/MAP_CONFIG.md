@@ -16,10 +16,10 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 | 키 | 타입 | 기본값 | 설명 |
 | --- | --- | --- | --- |
 | `appTitle` | string | `Pixel Road` | 상단 바 제목. |
-| `spotsCsvResourcePath` | string | `PixelRoad/spots` | 거점 CSV의 Resources 경로(확장자 제외). |
+| `landmarksJsonResourcePath` | string | `PixelRoad/landmarks` | 랜드마크 JSON의 Resources 경로(확장자 제외). |
 | `projection` | string | `WebMercator` | 좌표 투영 표기. 현재 구현은 WebMercator 고정. |
 | `bounds` | object | — | 거점이 분포하는 대략적 위경도 범위. `northLat` / `southLat` / `westLon` / `eastLon`. 지도 표시가 아니라 해금 판정용 공간 인덱스의 기준 위도를 잡는 데 쓰인다. 유효하지 않으면 앱이 시작하지 않는다. |
-| `defaultUnlockRadiusMeters` | float | `50` | CSV `radiusMeters`가 비었거나 0 이하일 때 쓰는 기본 해금 반경(m). |
+| `defaultUnlockRadiusMeters` | float | `50` | JSON `visitRadius`가 비었거나 0 이하일 때 쓰는 기본 방문 반경(m). |
 
 ## 픽셀 필터
 
@@ -36,7 +36,7 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 | `userMarkerPixelSize` | int | `44` | 지도 위 사용자 마커 한 변 크기(UI px). |
 | `markerTapMinimumPixelSize` | int | `96` | 거점 마커의 최소 터치 판정 크기(UI px). 그림보다 넓게 잡아 작은 아이콘도 누를 수 있게 한다. `spotMarkerPixelSize`보다 작으면 무시. 너무 키우면 인접 마커끼리 판정이 겹친다. |
 | `spotIconResourceFolder` | string | `PixelRoad/Icons` | 거점 아이콘 스프라이트를 찾을 Resources 폴더. |
-| `defaultSpotIconName` | string | `default` | CSV `icon`·`category`로 못 찾았을 때 마지막으로 시도할 아이콘 이름. |
+| `defaultSpotIconName` | string | `default` | JSON `thumbnail`·`category`로 못 찾았을 때 마지막으로 시도할 아이콘 이름. |
 | `userIconName` | string | `user` | 사용자 위치 마커 아이콘 이름. |
 
 아이콘 조회 규칙은 `Assets/Resources/PixelRoad/Icons/README.md` 참고.

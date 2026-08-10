@@ -4,7 +4,7 @@
 
 - The static map PNGs under `Assets/Resources/PixelRoad/Maps/` were removed on 2026-08-08. No OSM-derived raster imagery ships in the repository any more; their generation records remain in `docs/DATA_SOURCES.md` for provenance.
 - `Assets/Resources/PixelRoad/Icons/` currently contains only a README. Any spot icon PNG added there must have its own license and attribution recorded in this file before submission.
-- The included CSV descriptions are manually written. Four Munjeong/Bupyeong landmark coordinates were manually curated from OpenStreetMap; their element identifiers and verification sources are recorded in `docs/DATA_SOURCES.md`.
+- The included `landmarks.json` descriptions are manually written. Four Munjeong/Bupyeong landmark coordinates were manually curated from OpenStreetMap; their element identifiers and verification sources are recorded in `docs/DATA_SOURCES.md`.
 
 ## Included font
 

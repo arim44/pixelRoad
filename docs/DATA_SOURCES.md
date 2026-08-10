@@ -2,8 +2,8 @@
 
 ## Demo data included in this repository
 
-- `Assets/Resources/PixelRoad/spots.csv` contains manually curated demo points in Gangnam, Munjeong, and Bupyeong.
-- `Assets/Resources/PixelRoad/Icons/` holds optional spot marker sprites. Names are matched against the CSV `icon` and `category` columns; see the folder README for the fallback order.
+- `Assets/Resources/PixelRoad/landmarks.json` contains manually curated demo landmarks in Gangnam, Munjeong, and Bupyeong. It replaces the previous CSV runtime source.
+- `Assets/Resources/PixelRoad/Icons/` holds optional landmark marker sprites. Names are matched against the JSON `thumbnail` and `category` fields; see the folder README for the fallback order.
 
 ### Static PNG maps removed on 2026-08-08
 
@@ -20,7 +20,7 @@ Four landmarks near Munjeong Station and Bupyeong Station were added on 2026-08-
 - Bupyeong Modoo Mall: OpenStreetMap node `4636778093`; the name, location at Bupyeong Station, and facility description were cross-checked against [VISITKOREA](https://english.visitkorea.or.kr/svc/whereToGo/locIntrdn/rgnContentsView.do?vcontsId=70941).
 - Bupyeong Culture Street: OpenStreetMap way `457217779`; its current market listing and role in the shopping district were cross-checked against the [official Bupyeong-gu market guide](https://www.icbp.go.kr/main/life/economy/market.jsp) and [walking-tour guide](https://www.icbp.go.kr/tour/info/course_shopping.jsp).
 
-Coordinates were manually retrieved from OpenStreetMap through Nominatim on 2026-08-07 and are stored directly in the CSV; the application does not call a geocoding service at runtime. The Bupyeong Modoo Mall point deliberately uses its accessible Exit 18 as the unlock anchor because the underground complex has no single surface center. OpenStreetMap attribution is already shown in the map UI and documented below. Since the static PNG maps were removed, every point is shown geographically only while the live vector map is available. All points remain listed in the codex and can still be unlocked by real geographic distance.
+Coordinates were manually retrieved from OpenStreetMap through Nominatim on 2026-08-07 and are stored directly in `landmarks.json`; the application does not call a geocoding service at runtime. The Bupyeong Modoo Mall point deliberately uses its accessible Exit 18 as the unlock anchor because the underground complex has no single surface center. OpenStreetMap attribution is already shown in the map UI and documented below. Since the static PNG maps were removed, every point is shown geographically only while the live vector map is available. All points remain listed in the codex and can still be unlocked by real geographic distance.
 
 ## Generated OSM map record
 
@@ -93,6 +93,6 @@ See `docs/CONTEST_COMPLIANCE.md` for the complete review gates. The official con
 }
 ```
 
-It should cover the area the spots span. The app uses its center latitude to size the unlock spatial-index grid and refuses to start if the block is invalid.
+It should cover the area the landmarks span. The app uses its center latitude to size the unlock spatial-index grid and refuses to start if the block is invalid.
 
 Marker placement now comes from the live vector map's slippy-map projection. Unlocking uses real geographic distance, not pixel distance.

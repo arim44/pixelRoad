@@ -20,8 +20,8 @@ namespace PixelRoad.Data
         /// <summary>상단 바에 표시되는 앱 제목.</summary>
         public string appTitle = "Pixel Road";
 
-        /// <summary>거점 목록 CSV의 Resources 경로(확장자 제외).</summary>
-        public string spotsCsvResourcePath = "PixelRoad/spots";
+        /// <summary>랜드마크 목록 JSON의 Resources 경로(확장자 제외).</summary>
+        public string landmarksJsonResourcePath = "PixelRoad/landmarks";
 
         /// <summary>좌표 투영 방식 표기. 현재 구현은 WebMercator 고정.</summary>
         public string projection = "WebMercator";
@@ -33,7 +33,7 @@ namespace PixelRoad.Data
         /// </summary>
         public MapBounds bounds = new MapBounds();
 
-        /// <summary>CSV radiusMeters가 비었거나 0 이하일 때 적용할 기본 해금 반경(m).</summary>
+        /// <summary>JSON visitRadius가 비었거나 0 이하일 때 적용할 기본 방문 반경(m).</summary>
         public float defaultUnlockRadiusMeters = 50f;
 
         // ---------------------------------------------------------------
@@ -70,7 +70,7 @@ namespace PixelRoad.Data
         public string spotIconResourceFolder = "PixelRoad/Icons";
 
         /// <summary>
-        /// CSV의 icon·category 이름으로 아이콘을 못 찾았을 때 마지막으로 시도할 아이콘 이름.
+        /// landmarks.json의 thumbnail·category 이름으로 아이콘을 못 찾았을 때 마지막으로 시도할 아이콘 이름.
         /// 이것도 없으면 코드로 생성한 도형 마커를 쓴다.
         /// </summary>
         public string defaultSpotIconName = "default";

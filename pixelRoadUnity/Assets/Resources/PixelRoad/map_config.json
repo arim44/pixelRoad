@@ -1,12 +1,12 @@
 {
   "_docs": "각 값의 의미는 docs/MAP_CONFIG.md 와 Assets/Scripts/PixelRoad/Data/MapConfig.cs 주석 참고. JSON은 주석을 지원하지 않으므로 이 키만 메모용으로 두며, 파싱 시 무시된다.",
   "appTitle": "픽셀 로드",
-  "spotsCsvResourcePath": "PixelRoad/spots",
+  "landmarksJsonResourcePath": "PixelRoad/landmarks",
   "projection": "WebMercator",
   "bounds": {
     "northLat": 37.5868009304654,
     "southLat": 37.4071386954672,
-    "westLon": 126.92586845075705,
+    "westLon": 126.70000000000000,
     "eastLon": 127.15231855246095
   },
   "defaultUnlockRadiusMeters": 50,
