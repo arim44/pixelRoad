@@ -16,7 +16,7 @@ namespace PixelRoad.AR
     public sealed class ARSceneController : MonoBehaviour
     {
         private const string MapSceneName = "MapScene";
-        private const float NoLandmarksTimeoutSeconds = 3f;
+        private const float NoLandmarksTimeoutSeconds = 5f;
 
         [SerializeField]
         private Camera arCamera;
