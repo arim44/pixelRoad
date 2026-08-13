@@ -21,3 +21,9 @@ munjeong_garden_five_life,가든파이브 라이프,쇼핑과 문화 공간이 �
 munjeong_eastern_district_court,서울동부지방법원,문정 법조타운의 중심이 되는 서울 동부권 사법기관입니다.,public,37.4834961,127.1201679,60,landmark,false
 bupyeong_modoo_mall,부평모두몰,부평역과 연결된 대규모 지하 쇼핑 공간입니다.,culture,37.4917821,126.7229345,80,landmark,false
 bupyeong_culture_street,부평문화의거리,상점과 공연·행사가 모이는 부평역 대표 상권 거리입니다.,culture,37.4929144,126.7240696,80,landmark,false
+ar_test_north_80m,AR테스트 북쪽 80m,AR 아이콘 테스트용 임시 마커(북쪽 약 80m).,test,37.498895,126.843236,30,landmark,false
+ar_test_east_250m,AR테스트 동쪽 250m,AR 아이콘 테스트용 임시 마커(동쪽 약 250m).,test,37.498176,126.846067,30,landmark,false
+ar_test_south_500m,AR테스트 남쪽 500m,AR 아이콘 테스트용 임시 마커(남쪽 약 500m).,test,37.493684,126.843236,30,landmark,false
+ar_test_west_900m,AR테스트 서쪽 900m,AR 아이콘 테스트용 임시 마커(서쪽 약 900m).,test,37.498176,126.833045,30,landmark,false
+ar_test_ne_1300m,AR테스트 북동쪽 1300m,AR 아이콘 테스트용 임시 마커(북동쪽 약 1300m).,test,37.506434,126.853645,30,landmark,false
+ar_test_far_1800m,AR테스트 범위밖 1800m,AR 표시반경(기본 1500m) 밖에 있어 AR 화면에서 보이면 안 되는 필터링 테스트용 마커.,test,37.514346,126.843236,30,landmark,false
