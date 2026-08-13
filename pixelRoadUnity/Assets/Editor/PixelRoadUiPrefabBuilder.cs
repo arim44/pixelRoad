@@ -213,7 +213,7 @@ namespace PixelRoad.Editor
             codexButtonRect.pivot = new Vector2(0f, 0.5f);
             codexButtonRect.anchoredPosition = new Vector2(16f, 0f);
 
-            Button arButton = CreateButton("ArButton", topBar, "AR", new Vector2(88f, 48f));
+            Button arButton = CreateButton("ARButton", topBar, "AR", new Vector2(88f, 48f));
             RectTransform arButtonRect = arButton.GetComponent<RectTransform>();
             arButtonRect.anchorMin = new Vector2(1f, 0.5f);
             arButtonRect.anchorMax = new Vector2(1f, 0.5f);

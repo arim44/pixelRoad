@@ -73,7 +73,7 @@ namespace PixelRoad.Runtime
 
             view = PixelRoadRuntimeView.Create(config);
             view.CodexRequested += ToggleCodex;
-            view.ArRequested += OnArRequested;
+            view.ARRequested += OnARRequested;
             for (int i = 0; i < spots.Count; i++)
             {
                 view.AddSpotMarker(spots[i], SelectSpot);
@@ -236,7 +236,7 @@ namespace PixelRoad.Runtime
             view.SetCodexVisible(!view.IsCodexVisible());
         }
 
-        private void OnArRequested()
+        private void OnARRequested()
         {
             if (!currentLocation.IsValid)
             {
@@ -247,7 +247,7 @@ namespace PixelRoad.Runtime
             ARConfig arConfig = ARSceneLauncher.LoadConfig();
             List<SpotRuntimeState> nearby = spatialIndex.Query(
                 currentLocation.Latitude, currentLocation.Longitude, arConfig.arDisplayRadiusMeters);
-            StartCoroutine(ARSceneLauncher.LoadArScene(nearby, currentLocation));
+            StartCoroutine(ARSceneLauncher.LoadARScene(nearby, currentLocation));
         }
 
         private void RefreshProgress()

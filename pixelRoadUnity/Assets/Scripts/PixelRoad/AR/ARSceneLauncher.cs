@@ -10,7 +10,7 @@ namespace PixelRoad.AR
     /// <summary>MapScene 쪽에서 ARScene으로의 전환을 담당한다: 스냅샷 준비, 로딩 화면 표시, 비동기 씬 로드.</summary>
     public static class ARSceneLauncher
     {
-        private const string ArSceneName = "ARScene";
+        private const string ARSceneName = "ARScene";
         private const string ConfigResourcePath = "PixelRoad/ar_config";
         private const float SettleSeconds = 0.15f;
 
@@ -27,7 +27,7 @@ namespace PixelRoad.AR
             return config ?? new ARConfig();
         }
 
-        public static IEnumerator LoadArScene(
+        public static IEnumerator LoadARScene(
             IReadOnlyList<SpotRuntimeState> nearbySpots,
             GeoLocationSample currentLocation)
         {
@@ -35,7 +35,7 @@ namespace PixelRoad.AR
             ARHandoff.Prepare(snapshot, currentLocation);
 
             LoadingScreenView loading = LoadingScreenView.Create();
-            AsyncOperation operation = SceneManager.LoadSceneAsync(ArSceneName);
+            AsyncOperation operation = SceneManager.LoadSceneAsync(ARSceneName);
             operation.allowSceneActivation = false;
             while (operation.progress < 0.9f)
             {

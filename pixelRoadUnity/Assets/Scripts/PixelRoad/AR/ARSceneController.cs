@@ -10,8 +10,8 @@ using UnityEngine.XR.ARFoundation;
 namespace PixelRoad.AR
 {
     /// <summary>
-    /// ARScene의 진입점. ArHandoff로 받은 랜드마크/현재 위치를 바탕으로 위치·나침반을 갱신하고,
-    /// 매 프레임 랜드마크별 베어링·거리를 계산해 ArOverlayView에 표시를 위임한다.
+    /// ARScene의 진입점. ARHandoff로 받은 랜드마크/현재 위치를 바탕으로 위치·나침반을 갱신하고,
+    /// 매 프레임 랜드마크별 베어링·거리를 계산해 AROverlayView에 표시를 위임한다.
     /// </summary>
     public sealed class ARSceneController : MonoBehaviour
     {

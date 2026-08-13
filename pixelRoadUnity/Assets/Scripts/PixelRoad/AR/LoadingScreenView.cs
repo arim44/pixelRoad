@@ -23,7 +23,7 @@ namespace PixelRoad.AR
         public static LoadingScreenView Create()
         {
             GameObject canvasObject = new GameObject(
-                "ArLoadingCanvas",
+                "ARLoadingCanvas",
                 typeof(RectTransform),
                 typeof(Canvas),
                 typeof(CanvasScaler),

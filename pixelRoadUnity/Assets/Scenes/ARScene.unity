@@ -496,7 +496,7 @@ GameObject:
   - component: {fileID: 535660712}
   - component: {fileID: 535660713}
   m_Layer: 0
-  m_Name: ArSceneController
+  m_Name: AR Scene Controller
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -528,7 +528,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e3c2adfcefbbf7441ac37bc2af116ffa, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PixelRoad.AR.ArSceneController
+  m_EditorClassIdentifier: Assembly-CSharp::PixelRoad.AR.ARSceneController
   arCamera: {fileID: 631884}
   overlayRoot: {fileID: 1786570369}
   arSession: {fileID: 184137372}

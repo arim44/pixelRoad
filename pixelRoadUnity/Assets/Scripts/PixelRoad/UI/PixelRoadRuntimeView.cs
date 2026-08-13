@@ -66,7 +66,7 @@ namespace PixelRoad.UI
         private int totalCount;
 
         public event Action CodexRequested;
-        public event Action ArRequested;
+        public event Action ARRequested;
 
         private PixelRoadRuntimeView(MapConfig config)
         {
@@ -137,7 +137,7 @@ namespace PixelRoad.UI
 
             uiBindings.TitleText.text = config.appTitle;
             uiBindings.CodexButton.onClick.AddListener(() => CodexRequested?.Invoke());
-            uiBindings.ArButton.onClick.AddListener(OnClickARBtn);
+            uiBindings.ARButton.onClick.AddListener(OnClickARBtn);
             pixelToggleButton.onClick.AddListener(TogglePixelFilter);
             uiBindings.CodexCloseButton.onClick.AddListener(() => SetCodexVisible(false));
 
@@ -489,7 +489,7 @@ namespace PixelRoad.UI
 
         public void OnClickARBtn()
         {
-            ArRequested?.Invoke();
+            ARRequested?.Invoke();
         }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD || PIXELROAD_LIVE_VECTOR_MAP

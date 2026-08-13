@@ -51,7 +51,7 @@ namespace PixelRoad.UI
         public Image UserMarker => userMarker;
         public TMP_Text MapNoticeText => mapNoticeText;
         public Button CodexButton => codexButton;
-        public Button ArButton => arButton;
+        public Button ARButton => arButton;
         public TMP_Text TitleText => titleText;
         public Button PixelToggleButton => pixelToggleButton;
         public TMP_Text PixelToggleText => pixelToggleText;
