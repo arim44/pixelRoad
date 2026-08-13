@@ -13,7 +13,6 @@ namespace PixelRoad.Runtime
     public sealed class PixelRoadApp : MonoBehaviour
     {
         private const string ConfigResourcePath = "PixelRoad/map_config";
-        private const string UnlockStorageKey = "PixelRoad.UnlockedSpots";
         private const string MapSceneName = "MapScene";
 
         [SerializeField]
@@ -22,12 +21,25 @@ namespace PixelRoad.Runtime
         private MapConfig config;
         private PixelRoadRuntimeView view;
         private ILocationProvider locationProvider;
-        private UnlockRepository unlockRepository;
+        private VisitRepository visitRepository;
         private SpotSpatialIndex spatialIndex;
         private readonly List<SpotRuntimeState> spots = new List<SpotRuntimeState>();
         private GeoLocationSample currentLocation;
         private float unlockQueryRadiusMeters;
         private bool centeredOnce;
+
+        /// <summary>
+        /// AR 등 다른 기능에서 공유해 쓰는 현재 위치. Input.location을 중복 시작하지 않는다.
+        /// </summary>
+        public GeoLocationSample CurrentLocation
+        {
+            get { return currentLocation; }
+        }
+
+        public List<SpotRuntimeState> Spots
+        {
+            get { return spots; }
+        }
 
         // RuntimeInitializeOnLoadMethod는 앱 실행 중 딱 한 번만 실행되므로(최초 씬 로드 직후),
         // MapScene을 다시 불러왔을 때(ARScene에서 돌아오는 경우 등)도 자기 자신을 재생성하려면
@@ -113,7 +125,7 @@ namespace PixelRoad.Runtime
             }
 #endif
 
-            CheckUnlocks();
+            CheckVisits();
         }
 
         private void OnDestroy()
@@ -140,22 +152,34 @@ namespace PixelRoad.Runtime
                 return false;
             }
 
-            TextAsset spotsAsset = Resources.Load<TextAsset>(config.spotsCsvResourcePath);
-            if (spotsAsset == null)
+            TextAsset landmarksAsset = Resources.Load<TextAsset>(config.landmarksJsonResourcePath);
+            if (landmarksAsset == null)
             {
-                Debug.LogError("[PixelRoad] Missing spots CSV: " + config.spotsCsvResourcePath);
+                Debug.LogError("[PixelRoad] Missing landmarks JSON: " + config.landmarksJsonResourcePath);
                 return false;
             }
 
-            unlockRepository = new UnlockRepository(UnlockStorageKey);
-            List<SpotDefinition> definitions = SpotCsvParser.Parse(spotsAsset.text, config.defaultUnlockRadiusMeters);
+            visitRepository = new VisitRepository();
+            List<SpotDefinition> definitions;
+            try
+            {
+                definitions = LandmarkJsonParser.Parse(landmarksAsset.text, config.defaultUnlockRadiusMeters);
+            }
+            catch (System.FormatException exception)
+            {
+                Debug.LogError("[PixelRoad] Invalid landmarks.json: " + exception.Message);
+                return false;
+            }
+
             spots.Clear();
             float largestRadius = config.defaultUnlockRadiusMeters;
             for (int i = 0; i < definitions.Count; i++)
             {
                 SpotDefinition definition = definitions[i];
                 largestRadius = Mathf.Max(largestRadius, definition.RadiusMeters);
-                spots.Add(new SpotRuntimeState(definition, unlockRepository.IsUnlocked(definition)));
+                spots.Add(new SpotRuntimeState(
+                    definition,
+                    definition.InitiallyUnlocked || visitRepository.HasVisited(definition.LandmarkId)));
             }
 
             unlockQueryRadiusMeters = Mathf.Max(config.defaultUnlockRadiusMeters, largestRadius);
@@ -164,18 +188,13 @@ namespace PixelRoad.Runtime
             return true;
         }
 
-        private void CheckUnlocks()
+        private void CheckVisits()
         {
             List<SpotRuntimeState> nearby = spatialIndex.Query(currentLocation.Latitude, currentLocation.Longitude, unlockQueryRadiusMeters);
             bool changed = false;
             for (int i = 0; i < nearby.Count; i++)
             {
                 SpotRuntimeState state = nearby[i];
-                if (state.IsUnlocked)
-                {
-                    continue;
-                }
-
                 double distance = GeoProjection.DistanceMeters(
                     currentLocation.Latitude,
                     currentLocation.Longitude,
@@ -186,11 +205,19 @@ namespace PixelRoad.Runtime
                     continue;
                 }
 
-                state.Unlock();
-                unlockRepository.SaveUnlocked(state.Definition.Id);
-                view.UpdateSpotState(state);
-                view.SelectSpot(state, currentLocation);
-                changed = true;
+                bool wasUnlocked = state.IsUnlocked;
+                if (!visitRepository.RecordVisit(state.Definition.LandmarkId, System.DateTime.Now))
+                {
+                    continue;
+                }
+
+                if (!wasUnlocked)
+                {
+                    state.Unlock();
+                    view.UpdateSpotState(state);
+                    view.SelectSpot(state, currentLocation);
+                    changed = true;
+                }
             }
 
             if (changed)

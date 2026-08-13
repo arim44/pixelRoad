@@ -30,6 +30,7 @@ namespace PixelRoad.Mapping
 
         private MapConfig config;
         private RectTransform viewport;
+        private Canvas viewportCanvas;
         private RawImage output;
         private MapViewState view;
         private VectorTileProvider provider;
@@ -76,6 +77,7 @@ namespace PixelRoad.Mapping
 
             config = mapConfig;
             viewport = mapViewport;
+            viewportCanvas = viewport == null ? null : viewport.GetComponentInParent<Canvas>();
             output = mapOutput;
             if (config == null || viewport == null || output == null)
             {
@@ -155,8 +157,9 @@ namespace PixelRoad.Mapping
                 return;
             }
 
-            Canvas canvas = viewport.GetComponentInParent<Canvas>();
-            float scaleFactor = canvas == null ? 1f : Mathf.Max(0.0001f, canvas.scaleFactor);
+            float scaleFactor = viewportCanvas == null
+                ? 1f
+                : Mathf.Max(0.0001f, viewportCanvas.scaleFactor);
             view.Pan(screenDelta / scaleFactor);
             RefreshViewAndTiles();
         }

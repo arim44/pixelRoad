@@ -33,15 +33,34 @@ namespace PixelRoad.Location
         public IEnumerator Start()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            if (!Permission.HasUserAuthorizedPermission(Permission.FineLocation))
+            bool hasFineLocation = Permission.HasUserAuthorizedPermission(Permission.FineLocation);
+            bool hasCoarseLocation = Permission.HasUserAuthorizedPermission(Permission.CoarseLocation);
+            if (!hasFineLocation)
             {
-                Permission.RequestUserPermission(Permission.FineLocation);
+                // Android 12+에서는 정밀 위치를 요청할 때 대략적 위치도 같은 요청에
+                // 포함해야 한다. 사용자가 대략적 위치만 허용해도 GPS 시작은 가능하다.
+                Permission.RequestUserPermissions(new[]
+                {
+                    Permission.CoarseLocation,
+                    Permission.FineLocation
+                });
                 float permissionWait = 0f;
-                while (!Permission.HasUserAuthorizedPermission(Permission.FineLocation) && permissionWait < 10f)
+                while (!Permission.HasUserAuthorizedPermission(Permission.FineLocation)
+                       && !Permission.HasUserAuthorizedPermission(Permission.CoarseLocation)
+                       && permissionWait < 10f)
                 {
                     permissionWait += Time.unscaledDeltaTime;
                     yield return null;
                 }
+
+                hasFineLocation = Permission.HasUserAuthorizedPermission(Permission.FineLocation);
+                hasCoarseLocation = Permission.HasUserAuthorizedPermission(Permission.CoarseLocation);
+            }
+
+            if (!hasFineLocation && !hasCoarseLocation)
+            {
+                statusText = "Location permission denied";
+                yield break;
             }
 #endif
 

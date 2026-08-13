@@ -1,19 +1,19 @@
 # 거점 아이콘 폴더
 
-`spots.csv`의 `icon` 열 값과 **같은 이름**으로 PNG를 이 폴더에 넣으면 지도 마커와 도감 카드에 자동으로 적용된다.
-파일 이름은 대소문자를 가리지 않으며, 확장자는 CSV에 쓰지 않는다.
+`landmarks.json`의 `thumbnail` 값과 **같은 이름**으로 PNG를 이 폴더에 넣으면 지도 마커와 도감 카드에 자동으로 적용된다.
+파일 이름은 대소문자를 가리지 않으며, 확장자는 JSON에 쓰지 않는다.
 
 ## 조회 순서 (fallback)
 
-1. `Icons/{icon}` — CSV `icon` 열 (예: `station.png`)
-2. `Icons/{category}` — CSV `category` 열 (예: `history.png`)
+1. `Icons/{thumbnail}` — JSON `thumbnail` 필드 (예: `station.png`)
+2. `Icons/{category}` — JSON `category` 필드 (예: `history.png`)
 3. `Icons/default` — `map_config.json`의 `defaultSpotIconName`
 4. 없으면 코드로 생성한 마름모 도형 마커 (빨강 = 해금, 회색 = 잠김)
 
 사용자 위치 마커는 `map_config.json`의 `userIconName`(기본 `user`)을 같은 방식으로 찾고,
 없으면 원형 도형 마커로 대체된다.
 
-## 현재 CSV가 쓰는 아이콘 이름
+## 현재 landmarks.json이 쓰는 아이콘 이름
 
 `origin`, `station`, `tomb`, `temple`, `museum`, `landmark`, `fort`
 

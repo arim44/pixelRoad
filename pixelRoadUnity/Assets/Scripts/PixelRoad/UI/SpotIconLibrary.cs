@@ -5,11 +5,11 @@ using UnityEngine;
 namespace PixelRoad.UI
 {
     /// <summary>
-    /// spots.csv의 icon 열(그리고 category 열)을 Resources 스프라이트로 해석한다.
+    /// landmarks.json의 thumbnail 필드(그리고 category)를 Resources 스프라이트로 해석한다.
     ///
     /// 조회 순서(fallback):
-    ///   1. Resources/{folder}/{icon}      - CSV icon 열
-    ///   2. Resources/{folder}/{category}  - CSV category 열
+    ///   1. Resources/{folder}/{icon}      - JSON thumbnail 필드
+    ///   2. Resources/{folder}/{category}  - JSON category 필드
     ///   3. Resources/{folder}/{default}   - map_config.defaultSpotIconName
     ///   4. null                           - 호출측이 코드 생성 도형 마커로 대체
     ///
@@ -51,7 +51,7 @@ namespace PixelRoad.UI
                 missingIconLogged = true;
                 Debug.Log(
                     "[PixelRoad] 스팟 아이콘을 찾지 못해 기본 도형 마커를 사용합니다. " +
-                    "PNG를 Resources/" + folder + " 아래에 CSV icon 값과 같은 이름으로 넣으면 자동으로 적용됩니다. " +
+                    "PNG를 Resources/" + folder + " 아래에 JSON thumbnail 값과 같은 이름으로 넣으면 자동으로 적용됩니다. " +
                     "(찾은 키: " + iconKey + " / " + categoryKey + " / " + defaultIconName + ")");
             }
 

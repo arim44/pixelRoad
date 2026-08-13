@@ -174,11 +174,20 @@ PixelRoad
   "id": 1,
   "name": "경복궁",
   "category": "궁궐",
-  "region": "서울",
+  "collectionTitle": "조선",
+  "address": "서울특별시 종로구 사직로 161",
   "latitude": 37.579617,
-  "longitude": 126.977041
+  "longitude": 126.977041,
+  "visitRadius": 50,
+  "thumbnail": "gyeongbokgung",
+  "shortDescription": "조선의 첫 번째 법궁입니다.",
+  "history": "조선 왕조의 건국과 함께 세워진 궁궐입니다.",
+  "tags": ["조선", "궁궐", "왕실"],
+  "view360Image": null
 }
 ```
+
+실제 런타임 데이터는 `pixelRoadUnity/Assets/Resources/PixelRoad/landmarks.json`의 최상위 배열에 저장합니다.
 
 ---
 
@@ -189,9 +198,13 @@ PixelRoad
 ```json
 {
   "landmarkId": 1,
-  "visitedAt": "2025-08-15T15:30:00"
+  "visitCount": 2,
+  "firstVisitedAt": "2026-08-01T10:20:00",
+  "lastVisitedAt": "2026-08-03T15:40:00"
 }
 ```
+
+방문 기록은 기기별 `Application.persistentDataPath/visited_landmarks.json`에 로컬 저장되며 같은 날짜에는 한 번만 집계합니다. 상세 규칙은 `docs/LANDMARK_DATA.md`를 참고합니다.
 
 ---
 

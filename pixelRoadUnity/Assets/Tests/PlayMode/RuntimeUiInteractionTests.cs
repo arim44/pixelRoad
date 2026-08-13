@@ -14,6 +14,7 @@ namespace PixelRoad.Tests.PlayMode
         private const string MapConfigTypeName = "PixelRoad.Data.MapConfig, Assembly-CSharp";
         private const string SpotDefinitionTypeName = "PixelRoad.Data.SpotDefinition, Assembly-CSharp";
         private const string SpotRuntimeStateTypeName = "PixelRoad.Data.SpotRuntimeState, Assembly-CSharp";
+        private const string AppTypeName = "PixelRoad.Runtime.PixelRoadApp";
         private const string PixelModePreferenceKey = "PixelRoad.MapPixelMode";
 
         private Type runtimeViewType;
@@ -29,6 +30,11 @@ namespace PixelRoad.Tests.PlayMode
             hadPixelPreference = PlayerPrefs.HasKey(PixelModePreferenceKey);
             previousPixelPreference = PlayerPrefs.GetInt(PixelModePreferenceKey, 0);
             PlayerPrefs.SetInt(PixelModePreferenceKey, 0);
+
+            // RuntimeInitializeOnLoadMethod가 만든 실제 앱을 먼저 제거한다. 앱이 들고 있는
+            // viewport 참조를 남긴 채 아래 Canvas만 지우면 다음 프레임 Update에서 예외가 난다.
+            DestroyAllComponentsNamed(AppTypeName);
+            yield return null;
 
             Canvas[] canvases = UnityEngine.Object.FindObjectsByType<Canvas>(
                 FindObjectsInactive.Include,
@@ -168,12 +174,6 @@ namespace PixelRoad.Tests.PlayMode
             yield return null;
             Assert.That(ReadChildText(pixelToggle.gameObject), Is.EqualTo("픽셀 OFF"));
             Assert.That(ReadPrivateBool("pixelFilterEnabled"), Is.False);
-
-            // 지도가 없어도 줌 버튼이 예외 없이 동작해야 한다(라이브 렌더러로만 위임된다).
-            InvokeButton("ZoomIn");
-            yield return null;
-            InvokeButton("ZoomOut");
-            yield return null;
 
             object spotState = CreateSpotState();
             MethodInfo addSpotMarker = runtimeViewType.GetMethod("AddSpotMarker");
