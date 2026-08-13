@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using PixelRoad.Data;
 using PixelRoad.Geo;
 using PixelRoad.Location;
@@ -42,6 +44,7 @@ namespace PixelRoad.AR
         {
             config = ARSceneLauncher.LoadConfig();
             view = new AROverlayView(overlayRoot, config);
+            view.CaptureRequested += OnCaptureRequested;
             currentLocation = ARHandoff.InitialLocation;
 
 #if UNITY_EDITOR
@@ -85,8 +88,36 @@ namespace PixelRoad.AR
 
         private void OnDestroy()
         {
+            if (view != null)
+            {
+                view.CaptureRequested -= OnCaptureRequested;
+            }
+
             locationProvider?.Stop();
             headingProvider?.Stop();
+        }
+
+        private void OnCaptureRequested()
+        {
+            StartCoroutine(CaptureScreenshotRoutine());
+        }
+
+        /// <summary>
+        /// 촬영 버튼만 감춘 채 현재 프레임(카메라 패스스루 + 랜드마크 오버레이)을 캡처해 갤러리에 저장한다.
+        /// </summary>
+        private IEnumerator CaptureScreenshotRoutine()
+        {
+            view.SetCaptureButtonVisible(false);
+            yield return new WaitForEndOfFrame();
+
+            Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
+            view.SetCaptureButtonVisible(true);
+
+            byte[] pngBytes = screenshot.EncodeToPNG();
+            Destroy(screenshot);
+
+            string fileName = "PixelRoad_AR_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".png";
+            AndroidGalleryExporter.SaveScreenshot(pngBytes, fileName, config.screenshotGalleryFolder);
         }
 
         private void UpdateSmoothedHeading(float rawHeading)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using PixelRoad.Data;
 using PixelRoad.UI;
@@ -15,6 +16,8 @@ namespace PixelRoad.AR
         private const string NoLandmarksMessage = "근처에 랜드마크가 없습니다.\n잠시 후 지도로 돌아갑니다.";
         private const float BlinkFrequencyHz = 2f;
         private const float MinBlinkAlpha = 0.25f;
+        private const float CaptureButtonSize = 88f;
+        private const float CaptureButtonBottomMargin = 48f;
 
         private static readonly Color32 UnlockedIconTint = Color.white;
         private static readonly Color32 LockedIconTint = new Color32(124, 120, 112, 235);
@@ -27,6 +30,10 @@ namespace PixelRoad.AR
         private readonly Dictionary<string, LandmarkBinding> bindings = new Dictionary<string, LandmarkBinding>();
         private readonly Sprite arrowSprite;
         private readonly TMP_Text statusText;
+        private readonly Button captureButton;
+
+        /// <summary>촬영 버튼이 눌렸을 때 발생한다. 실제 캡처·저장은 코루틴이 필요해 ARSceneController가 처리한다.</summary>
+        public event Action CaptureRequested;
 
         public AROverlayView(RectTransform overlayRoot, ARConfig config)
         {
@@ -37,6 +44,13 @@ namespace PixelRoad.AR
 
             CreateBackButton();
             statusText = CreateStatusText();
+            captureButton = CreateCaptureButton();
+        }
+
+        /// <summary>캡처 순간에만 버튼 자신을 화면에서 감춰서, 찍힌 사진에 버튼이 함께 찍히지 않게 한다.</summary>
+        public void SetCaptureButtonVisible(bool visible)
+        {
+            captureButton.gameObject.SetActive(visible);
         }
 
         /// <summary>ARCore 미지원 등 랜드마크 갱신을 멈추고 안내만 보여줘야 할 때 쓴다. null/빈 문자열이면 숨긴다.</summary>
@@ -198,6 +212,27 @@ namespace PixelRoad.AR
                 ARHandoff.Clear();
                 SceneManager.LoadScene(MapSceneName);
             });
+        }
+
+        /// <summary>화면 아래쪽 가운데의 원형 촬영 버튼. 카메라 셔터 버튼 모양을 흉내낸 흰색 원이다.</summary>
+        private Button CreateCaptureButton()
+        {
+            GameObject buttonObject = ARUiFactory.CreateObject("CaptureButton", overlayRoot);
+            RectTransform rect = buttonObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.sizeDelta = new Vector2(CaptureButtonSize, CaptureButtonSize);
+            rect.anchoredPosition = new Vector2(0f, CaptureButtonBottomMargin);
+
+            Image image = buttonObject.AddComponent<Image>();
+            image.sprite = ARUiFactory.CreateCircleSprite((int)CaptureButtonSize, Color.white);
+            image.color = Color.white;
+
+            Button button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.onClick.AddListener(() => CaptureRequested?.Invoke());
+            return button;
         }
 
         private TMP_Text CreateStatusText()

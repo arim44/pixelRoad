@@ -54,5 +54,15 @@ namespace PixelRoad.Data
 
         /// <summary>이 거리(m) 이상 움직였을 때만 위치 갱신을 받는다.</summary>
         public float locationUpdateDistanceMeters = 3f;
+
+        // ---------------------------------------------------------------
+        // 캡처 저장
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// AR 화면 캡처를 저장할 폴더. Android는 갤러리(MediaStore)의 Pictures/ 아래 상대 경로로 쓰이고,
+        /// 에디터 등 실기기가 아닌 환경에서는 persistentDataPath 아래 같은 이름의 하위 폴더에 저장한다.
+        /// </summary>
+        public string screenshotGalleryFolder = "Pictures/PixelRoad";
     }
 }

@@ -140,6 +140,35 @@ namespace PixelRoad.AR
             return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
         }
 
+        /// <summary>카메라 셔터 버튼 등에 쓰는 원형 스프라이트. 테두리를 살짝 어둡게 둘러 입체감을 준다.</summary>
+        public static Sprite CreateCircleSprite(int size, Color32 color)
+        {
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.filterMode = FilterMode.Point;
+            Color32 clear = new Color32(0, 0, 0, 0);
+            Color32 border = new Color32(20, 18, 16, 255);
+            float center = (size - 1) * 0.5f;
+            float radius = size * 0.46f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    if (distance <= radius)
+                    {
+                        texture.SetPixel(x, y, distance > radius - 3f ? border : color);
+                    }
+                    else
+                    {
+                        texture.SetPixel(x, y, clear);
+                    }
+                }
+            }
+
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
         /// <summary>화면 가장자리 방향 화살표에 쓰는 위쪽을 향한 삼각형 스프라이트.</summary>
         public static Sprite CreateTriangleSprite(int size, Color32 color)
         {

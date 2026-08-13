@@ -9,5 +9,6 @@
   "spotIconResourceFolder": "PixelRoad/Icons",
   "defaultSpotIconName": "default",
   "desiredAccuracyMeters": 15,
-  "locationUpdateDistanceMeters": 3
+  "locationUpdateDistanceMeters": 3,
+  "screenshotGalleryFolder": "Pictures/PixelRoad"
 }
