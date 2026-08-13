@@ -1,7 +1,7 @@
 namespace PixelRoad.AR
 {
     /// <summary>MapScene에서 ARScene으로 넘기는 랜드마크 정보의 경량 스냅샷.</summary>
-    public readonly struct ArLandmarkSnapshot
+    public readonly struct ARLandmarkSnapshot
     {
         public readonly string Id;
         public readonly string DisplayName;
@@ -11,7 +11,7 @@ namespace PixelRoad.AR
         public readonly double Longitude;
         public readonly bool IsUnlocked;
 
-        public ArLandmarkSnapshot(
+        public ARLandmarkSnapshot(
             string id,
             string displayName,
             string iconKey,

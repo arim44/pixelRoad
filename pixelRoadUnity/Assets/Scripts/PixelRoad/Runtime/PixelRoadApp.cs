@@ -244,10 +244,10 @@ namespace PixelRoad.Runtime
                 return;
             }
 
-            ARConfig arConfig = ArSceneLauncher.LoadConfig();
+            ARConfig arConfig = ARSceneLauncher.LoadConfig();
             List<SpotRuntimeState> nearby = spatialIndex.Query(
                 currentLocation.Latitude, currentLocation.Longitude, arConfig.arDisplayRadiusMeters);
-            StartCoroutine(ArSceneLauncher.LoadArScene(nearby, currentLocation));
+            StartCoroutine(ARSceneLauncher.LoadArScene(nearby, currentLocation));
         }
 
         private void RefreshProgress()

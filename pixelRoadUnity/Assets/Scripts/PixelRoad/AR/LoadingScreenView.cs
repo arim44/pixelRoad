@@ -36,12 +36,12 @@ namespace PixelRoad.AR
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             scaler.matchWidthOrHeight = 0.5f;
 
-            RectTransform background = ArUiFactory.CreateRect("Background", canvasObject.transform);
-            ArUiFactory.Stretch(background);
+            RectTransform background = ARUiFactory.CreateRect("Background", canvasObject.transform);
+            ARUiFactory.Stretch(background);
             Image backgroundImage = background.gameObject.AddComponent<Image>();
             backgroundImage.color = new Color32(15, 14, 12, 230);
 
-            ArUiFactory.CreateText(
+            ARUiFactory.CreateText(
                 "Message",
                 background,
                 "AR 화면 불러오는 중…",
@@ -54,7 +54,7 @@ namespace PixelRoad.AR
             messageRect.offsetMin = Vector2.zero;
             messageRect.offsetMax = Vector2.zero;
 
-            RectTransform barBackground = ArUiFactory.CreateRect("ProgressBarBackground", background);
+            RectTransform barBackground = ARUiFactory.CreateRect("ProgressBarBackground", background);
             barBackground.anchorMin = new Vector2(0.15f, 0.48f);
             barBackground.anchorMax = new Vector2(0.85f, 0.52f);
             barBackground.offsetMin = Vector2.zero;
@@ -62,8 +62,8 @@ namespace PixelRoad.AR
             Image barBackgroundImage = barBackground.gameObject.AddComponent<Image>();
             barBackgroundImage.color = new Color32(70, 67, 61, 255);
 
-            RectTransform barFill = ArUiFactory.CreateRect("ProgressBarFill", barBackground);
-            ArUiFactory.Stretch(barFill);
+            RectTransform barFill = ARUiFactory.CreateRect("ProgressBarFill", barBackground);
+            ARUiFactory.Stretch(barFill);
             Image barFillImage = barFill.gameObject.AddComponent<Image>();
             barFillImage.color = new Color32(208, 56, 48, 255);
             barFillImage.type = Image.Type.Filled;

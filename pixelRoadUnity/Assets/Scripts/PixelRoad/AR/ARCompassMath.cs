@@ -3,7 +3,7 @@ using UnityEngine;
 namespace PixelRoad.AR
 {
     /// <summary>베어링·헤딩 각도를 화면 좌표로 매핑하는 순수 계산 헬퍼.</summary>
-    public static class ArCompassMath
+    public static class ARCompassMath
     {
         /// <summary>각도를 (-180, 180] 범위로 정규화한다. 0/360도 경계를 넘어가는 델타 계산에 쓴다.</summary>
         public static float NormalizeAngle(float angleDegrees)

@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 namespace PixelRoad.AR
 {
     /// <summary>MapScene 쪽에서 ARScene으로의 전환을 담당한다: 스냅샷 준비, 로딩 화면 표시, 비동기 씬 로드.</summary>
-    public static class ArSceneLauncher
+    public static class ARSceneLauncher
     {
         private const string ArSceneName = "ARScene";
         private const string ConfigResourcePath = "PixelRoad/ar_config";
@@ -31,8 +31,8 @@ namespace PixelRoad.AR
             IReadOnlyList<SpotRuntimeState> nearbySpots,
             GeoLocationSample currentLocation)
         {
-            List<ArLandmarkSnapshot> snapshot = BuildSnapshot(nearbySpots);
-            ArHandoff.Prepare(snapshot, currentLocation);
+            List<ARLandmarkSnapshot> snapshot = BuildSnapshot(nearbySpots);
+            ARHandoff.Prepare(snapshot, currentLocation);
 
             LoadingScreenView loading = LoadingScreenView.Create();
             AsyncOperation operation = SceneManager.LoadSceneAsync(ArSceneName);
@@ -48,13 +48,13 @@ namespace PixelRoad.AR
             operation.allowSceneActivation = true;
         }
 
-        private static List<ArLandmarkSnapshot> BuildSnapshot(IReadOnlyList<SpotRuntimeState> spots)
+        private static List<ARLandmarkSnapshot> BuildSnapshot(IReadOnlyList<SpotRuntimeState> spots)
         {
-            List<ArLandmarkSnapshot> result = new List<ArLandmarkSnapshot>(spots.Count);
+            List<ARLandmarkSnapshot> result = new List<ARLandmarkSnapshot>(spots.Count);
             for (int i = 0; i < spots.Count; i++)
             {
                 SpotDefinition definition = spots[i].Definition;
-                result.Add(new ArLandmarkSnapshot(
+                result.Add(new ARLandmarkSnapshot(
                     definition.Id,
                     definition.DisplayName,
                     definition.IconKey,

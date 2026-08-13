@@ -8,9 +8,9 @@ namespace PixelRoad.AR
     /// <summary>
     /// AR 화면의 절차적 UI 생성에 쓰는 공용 헬퍼.
     /// PixelRoadRuntimeView가 자체적으로 갖고 있는 것과 같은 패턴(코드로 RectTransform/Image/TMP_Text 생성)을
-    /// AR 관련 신규 파일(LoadingScreenView, ArOverlayView)끼리 공유하기 위한 것으로, 기존 UI 코드는 건드리지 않는다.
+    /// AR 관련 신규 파일(LoadingScreenView, AROverlayView)끼리 공유하기 위한 것으로, 기존 UI 코드는 건드리지 않는다.
     /// </summary>
-    internal static class ArUiFactory
+    internal static class ARUiFactory
     {
         private const string PixelFontResourcePath = "PixelRoad/Fonts/Galmuri11";
 

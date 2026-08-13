@@ -9,9 +9,12 @@ using UnityEngine.UI;
 namespace PixelRoad.AR
 {
     /// <summary>ARScene의 절차적 오버레이 UI: 랜드마크별 아이콘/거리 라벨, 화면 밖 방향 화살표, 상태 메시지, 뒤로가기.</summary>
-    public sealed class ArOverlayView
+    public sealed class AROverlayView
     {
         private const string MapSceneName = "MapScene";
+        private const string NoLandmarksMessage = "근처에 랜드마크가 없습니다.\n잠시 후 지도로 돌아갑니다.";
+        private const float BlinkFrequencyHz = 2f;
+        private const float MinBlinkAlpha = 0.25f;
 
         private static readonly Color32 UnlockedIconTint = Color.white;
         private static readonly Color32 LockedIconTint = new Color32(124, 120, 112, 235);
@@ -25,12 +28,12 @@ namespace PixelRoad.AR
         private readonly Sprite arrowSprite;
         private readonly TMP_Text statusText;
 
-        public ArOverlayView(RectTransform overlayRoot, ARConfig config)
+        public AROverlayView(RectTransform overlayRoot, ARConfig config)
         {
             this.overlayRoot = overlayRoot;
             this.config = config;
             iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName);
-            arrowSprite = ArUiFactory.CreateTriangleSprite(config.edgeArrowPixelSize, TextColor);
+            arrowSprite = ARUiFactory.CreateTriangleSprite(config.edgeArrowPixelSize, TextColor);
 
             CreateBackButton();
             statusText = CreateStatusText();
@@ -43,12 +46,34 @@ namespace PixelRoad.AR
             if (visible)
             {
                 statusText.text = message;
+                statusText.color = TextColor;
             }
 
             statusText.gameObject.SetActive(visible);
         }
 
-        public void ShowOnScreen(ArLandmarkSnapshot landmark, float anchoredX, double distanceMeters)
+        /// <summary>
+        /// 반경 내 랜드마크가 하나도 없을 때 화면 중앙에 깜빡이는 경고 문구를 표시한다.
+        /// elapsedSeconds는 경고가 뜬 뒤 흐른 시간(초)으로, 깜빡임 위상을 계산하는 데만 쓴다.
+        /// </summary>
+        public void SetNoLandmarksWarning(bool visible, float elapsedSeconds)
+        {
+            if (!visible)
+            {
+                statusText.gameObject.SetActive(false);
+                return;
+            }
+
+            statusText.text = NoLandmarksMessage;
+            statusText.gameObject.SetActive(true);
+            float phase = elapsedSeconds * BlinkFrequencyHz * Mathf.PI * 2f;
+            float alpha = MinBlinkAlpha + (1f - MinBlinkAlpha) * (0.5f + 0.5f * Mathf.Sin(phase));
+            Color color = TextColor;
+            color.a = alpha;
+            statusText.color = color;
+        }
+
+        public void ShowOnScreen(ARLandmarkSnapshot landmark, float anchoredX, double distanceMeters)
         {
             LandmarkBinding binding = GetOrCreateBinding(landmark);
             binding.Root.gameObject.SetActive(true);
@@ -63,7 +88,7 @@ namespace PixelRoad.AR
         /// 화면 가장자리 방향 화살표를 표시한다. sameSideSlotIndex는 이번 프레임에 같은 쪽(좌/우)에
         /// 표시되는 화살표들 사이에서 이 랜드마크의 순번(0부터)이다 - 여러 개가 겹치지 않도록 세로로 쌓는 데 쓴다.
         /// </summary>
-        public void ShowAtEdge(ArLandmarkSnapshot landmark, bool rightSide, double distanceMeters, int sameSideSlotIndex)
+        public void ShowAtEdge(ARLandmarkSnapshot landmark, bool rightSide, double distanceMeters, int sameSideSlotIndex)
         {
             LandmarkBinding binding = GetOrCreateBinding(landmark);
             binding.Root.gameObject.SetActive(true);
@@ -101,14 +126,14 @@ namespace PixelRoad.AR
             }
         }
 
-        private LandmarkBinding GetOrCreateBinding(ArLandmarkSnapshot landmark)
+        private LandmarkBinding GetOrCreateBinding(ARLandmarkSnapshot landmark)
         {
             if (bindings.TryGetValue(landmark.Id, out LandmarkBinding existing))
             {
                 return existing;
             }
 
-            RectTransform root = ArUiFactory.CreateRect("Landmark_" + landmark.Id, overlayRoot);
+            RectTransform root = ARUiFactory.CreateRect("Landmark_" + landmark.Id, overlayRoot);
             root.anchorMin = new Vector2(0.5f, 0.5f);
             root.anchorMax = new Vector2(0.5f, 0.5f);
             root.pivot = new Vector2(0.5f, 0.5f);
@@ -116,7 +141,7 @@ namespace PixelRoad.AR
 
             Sprite normalSprite = ResolveIconSprite(landmark);
 
-            Image icon = ArUiFactory.CreateObject("Icon", root).AddComponent<Image>();
+            Image icon = ARUiFactory.CreateObject("Icon", root).AddComponent<Image>();
             icon.raycastTarget = false;
             icon.preserveAspect = true;
             icon.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
@@ -126,7 +151,7 @@ namespace PixelRoad.AR
             icon.sprite = normalSprite;
             icon.color = landmark.IsUnlocked ? (Color)UnlockedIconTint : (Color)LockedIconTint;
 
-            TMP_Text label = ArUiFactory.CreateText(
+            TMP_Text label = ARUiFactory.CreateText(
                 "Distance",
                 root,
                 string.Empty,
@@ -146,17 +171,17 @@ namespace PixelRoad.AR
             return binding;
         }
 
-        private Sprite ResolveIconSprite(ArLandmarkSnapshot landmark)
+        private Sprite ResolveIconSprite(ARLandmarkSnapshot landmark)
         {
             Sprite sprite = iconLibrary.Resolve(landmark.IconKey, landmark.Category);
             return sprite != null
                 ? sprite
-                : ArUiFactory.CreateDiamondSprite(config.iconPixelSize, FallbackIconColor);
+                : ARUiFactory.CreateDiamondSprite(config.iconPixelSize, FallbackIconColor);
         }
 
         private void CreateBackButton()
         {
-            Button button = ArUiFactory.CreateButton(
+            Button button = ARUiFactory.CreateButton(
                 "BackButton",
                 overlayRoot,
                 "지도로",
@@ -170,14 +195,14 @@ namespace PixelRoad.AR
             rect.anchoredPosition = new Vector2(16f, -16f);
             button.onClick.AddListener(() =>
             {
-                ArHandoff.Clear();
+                ARHandoff.Clear();
                 SceneManager.LoadScene(MapSceneName);
             });
         }
 
         private TMP_Text CreateStatusText()
         {
-            TMP_Text text = ArUiFactory.CreateText(
+            TMP_Text text = ARUiFactory.CreateText(
                 "StatusMessage",
                 overlayRoot,
                 string.Empty,

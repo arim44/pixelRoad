@@ -4,6 +4,7 @@ using PixelRoad.Data;
 using PixelRoad.Geo;
 using PixelRoad.Location;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.XR.ARFoundation;
 
 namespace PixelRoad.AR
@@ -12,8 +13,11 @@ namespace PixelRoad.AR
     /// ARScene의 진입점. ArHandoff로 받은 랜드마크/현재 위치를 바탕으로 위치·나침반을 갱신하고,
     /// 매 프레임 랜드마크별 베어링·거리를 계산해 ArOverlayView에 표시를 위임한다.
     /// </summary>
-    public sealed class ArSceneController : MonoBehaviour
+    public sealed class ARSceneController : MonoBehaviour
     {
+        private const string MapSceneName = "MapScene";
+        private const float NoLandmarksTimeoutSeconds = 3f;
+
         [SerializeField]
         private Camera arCamera;
 
@@ -24,26 +28,21 @@ namespace PixelRoad.AR
         private ARSession arSession;
 
         private ARConfig config;
-        private ArOverlayView view;
+        private AROverlayView view;
         private ILocationProvider locationProvider;
         private IHeadingProvider headingProvider;
         private GeoLocationSample currentLocation;
         private float smoothedHeading;
         private bool hasSmoothedHeading;
         private bool ready;
+        private float noLandmarksTimer;
+        private bool returningToMap;
 
         private IEnumerator Start()
         {
-            config = ArSceneLauncher.LoadConfig();
-            view = new ArOverlayView(overlayRoot, config);
-
-            if (!ArHandoff.HasData)
-            {
-                view.SetStatusMessage("표시할 랜드마크 정보가 없습니다. 지도 화면에서 다시 시도해 주세요.");
-                yield break;
-            }
-
-            currentLocation = ArHandoff.InitialLocation;
+            config = ARSceneLauncher.LoadConfig();
+            view = new AROverlayView(overlayRoot, config);
+            currentLocation = ARHandoff.InitialLocation;
 
 #if UNITY_EDITOR
             locationProvider = new SimulatedLocationProvider(currentLocation.Latitude, currentLocation.Longitude);
@@ -105,15 +104,16 @@ namespace PixelRoad.AR
 
         private void UpdateLandmarks()
         {
-            float horizontalFov = ArCompassMath.HorizontalFovDegrees(arCamera);
+            float horizontalFov = ARCompassMath.HorizontalFovDegrees(arCamera);
             float halfCanvasWidth = overlayRoot.rect.width * 0.5f;
             int leftEdgeCount = 0;
             int rightEdgeCount = 0;
+            int visibleCount = 0;
 
-            IReadOnlyList<ArLandmarkSnapshot> landmarks = ArHandoff.Landmarks;
+            IReadOnlyList<ARLandmarkSnapshot> landmarks = ARHandoff.Landmarks;
             for (int i = 0; i < landmarks.Count; i++)
             {
-                ArLandmarkSnapshot landmark = landmarks[i];
+                ARLandmarkSnapshot landmark = landmarks[i];
                 double distance = GeoProjection.DistanceMeters(
                     currentLocation.Latitude,
                     currentLocation.Longitude,
@@ -125,16 +125,17 @@ namespace PixelRoad.AR
                     continue;
                 }
 
+                visibleCount++;
                 double bearing = GeoProjection.BearingDegrees(
                     currentLocation.Latitude,
                     currentLocation.Longitude,
                     landmark.Latitude,
                     landmark.Longitude);
-                float delta = ArCompassMath.NormalizeAngle((float)bearing - smoothedHeading);
+                float delta = ARCompassMath.NormalizeAngle((float)bearing - smoothedHeading);
 
                 if (Mathf.Abs(delta) <= horizontalFov * 0.5f)
                 {
-                    float screenX = ArCompassMath.DeltaToScreenX(delta, horizontalFov, halfCanvasWidth);
+                    float screenX = ARCompassMath.DeltaToScreenX(delta, horizontalFov, halfCanvasWidth);
                     view.ShowOnScreen(landmark, screenX, distance);
                 }
                 else
@@ -143,6 +144,32 @@ namespace PixelRoad.AR
                     int slotIndex = rightSide ? rightEdgeCount++ : leftEdgeCount++;
                     view.ShowAtEdge(landmark, rightSide, distance, slotIndex);
                 }
+            }
+
+            HandleNoLandmarksState(visibleCount);
+        }
+
+        /// <summary>
+        /// 표시 반경 안에 랜드마크가 하나도 없는 상태가 이어지면 경고 문구를 깜빡이며 보여주다가
+        /// NoLandmarksTimeoutSeconds가 지나면 지도 화면으로 돌아간다.
+        /// </summary>
+        private void HandleNoLandmarksState(int visibleLandmarkCount)
+        {
+            if (visibleLandmarkCount > 0)
+            {
+                noLandmarksTimer = 0f;
+                view.SetNoLandmarksWarning(false, 0f);
+                return;
+            }
+
+            noLandmarksTimer += Time.deltaTime;
+            view.SetNoLandmarksWarning(true, noLandmarksTimer);
+
+            if (!returningToMap && noLandmarksTimer >= NoLandmarksTimeoutSeconds)
+            {
+                returningToMap = true;
+                ARHandoff.Clear();
+                SceneManager.LoadScene(MapSceneName);
             }
         }
 
