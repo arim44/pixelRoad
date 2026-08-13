@@ -137,7 +137,7 @@ namespace PixelRoad.UI
 
             uiBindings.TitleText.text = config.appTitle;
             uiBindings.CodexButton.onClick.AddListener(() => CodexRequested?.Invoke());
-            uiBindings.ArButton.onClick.AddListener(() => ArRequested?.Invoke());
+            uiBindings.ArButton.onClick.AddListener(OnClickARBtn);
             pixelToggleButton.onClick.AddListener(TogglePixelFilter);
             uiBindings.CodexCloseButton.onClick.AddListener(() => SetCodexVisible(false));
 
@@ -485,6 +485,11 @@ namespace PixelRoad.UI
                         lastUserLocation.Longitude);
                 }
             }
+        }
+
+        public void OnClickARBtn()
+        {
+            ArRequested?.Invoke();
         }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD || PIXELROAD_LIVE_VECTOR_MAP
