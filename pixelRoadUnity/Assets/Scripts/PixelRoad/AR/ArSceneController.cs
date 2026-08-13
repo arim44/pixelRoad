@@ -50,7 +50,7 @@ namespace PixelRoad.AR
             headingProvider = new SimulatedHeadingProvider();
 #else
             locationProvider = new UnityGpsLocationProvider(config.desiredAccuracyMeters, config.locationUpdateDistanceMeters);
-            headingProvider = new UnityCompassHeadingProvider();
+            headingProvider = new FusedHeadingProvider(arCamera.transform);
 #endif
             yield return StartCoroutine(locationProvider.Start());
             headingProvider.Start();
