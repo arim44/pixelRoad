@@ -36,6 +36,9 @@ namespace PixelRoad.Data
         /// <summary>가장자리 화살표를 화면 테두리에서 띄우는 여백(px).</summary>
         public float edgeMarginPixels = 48f;
 
+        /// <summary>같은 쪽(좌/우) 가장자리 화살표가 여러 개 겹칠 때 세로로 떨어뜨려 쌓는 간격(px).</summary>
+        public float edgeStackSpacingPixels = 100f;
+
         /// <summary>거점 아이콘 스프라이트를 찾을 Resources 폴더. MapConfig의 동일 값과 같은 폴더를 가리키되 독립적으로 설정한다.</summary>
         public string spotIconResourceFolder = "PixelRoad/Icons";
 

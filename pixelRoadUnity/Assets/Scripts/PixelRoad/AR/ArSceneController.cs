@@ -107,6 +107,8 @@ namespace PixelRoad.AR
         {
             float horizontalFov = ArCompassMath.HorizontalFovDegrees(arCamera);
             float halfCanvasWidth = overlayRoot.rect.width * 0.5f;
+            int leftEdgeCount = 0;
+            int rightEdgeCount = 0;
 
             IReadOnlyList<ArLandmarkSnapshot> landmarks = ArHandoff.Landmarks;
             for (int i = 0; i < landmarks.Count; i++)
@@ -137,7 +139,9 @@ namespace PixelRoad.AR
                 }
                 else
                 {
-                    view.ShowAtEdge(landmark, delta > 0f, distance);
+                    bool rightSide = delta > 0f;
+                    int slotIndex = rightSide ? rightEdgeCount++ : leftEdgeCount++;
+                    view.ShowAtEdge(landmark, rightSide, distance, slotIndex);
                 }
             }
         }

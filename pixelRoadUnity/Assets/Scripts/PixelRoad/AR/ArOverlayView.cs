@@ -59,7 +59,11 @@ namespace PixelRoad.AR
             binding.DistanceLabel.text = FormatDistance(distanceMeters);
         }
 
-        public void ShowAtEdge(ArLandmarkSnapshot landmark, bool rightSide, double distanceMeters)
+        /// <summary>
+        /// 화면 가장자리 방향 화살표를 표시한다. sameSideSlotIndex는 이번 프레임에 같은 쪽(좌/우)에
+        /// 표시되는 화살표들 사이에서 이 랜드마크의 순번(0부터)이다 - 여러 개가 겹치지 않도록 세로로 쌓는 데 쓴다.
+        /// </summary>
+        public void ShowAtEdge(ArLandmarkSnapshot landmark, bool rightSide, double distanceMeters, int sameSideSlotIndex)
         {
             LandmarkBinding binding = GetOrCreateBinding(landmark);
             binding.Root.gameObject.SetActive(true);
@@ -69,8 +73,24 @@ namespace PixelRoad.AR
 
             float halfWidth = overlayRoot.rect.width * 0.5f;
             float x = Mathf.Max(0f, halfWidth - config.edgeMarginPixels);
-            binding.Root.anchoredPosition = new Vector2(rightSide ? x : -x, 0f);
+            float y = StackedOffsetY(sameSideSlotIndex, config.edgeStackSpacingPixels);
+            binding.Root.anchoredPosition = new Vector2(rightSide ? x : -x, y);
             binding.DistanceLabel.text = FormatDistance(distanceMeters);
+        }
+
+        /// <summary>
+        /// 슬롯 0은 중앙(0), 이후로는 중앙 기준 위/아래로 번갈아 벌어진다: 1=-간격, 2=+간격, 3=-2*간격, 4=+2*간격 ...
+        /// </summary>
+        private static float StackedOffsetY(int slotIndex, float spacing)
+        {
+            if (slotIndex <= 0)
+            {
+                return 0f;
+            }
+
+            int magnitude = (slotIndex + 1) / 2;
+            float sign = (slotIndex % 2 == 1) ? -1f : 1f;
+            return sign * magnitude * spacing;
         }
 
         public void Hide(string landmarkId)
