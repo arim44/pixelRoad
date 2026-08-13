@@ -33,6 +33,11 @@ namespace PixelRoad.Runtime
             get { return currentLocation; }
         }
 
+        public List<SpotRuntimeState> Spots
+        {
+            get { return spots; }
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
