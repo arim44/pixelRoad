@@ -485,6 +485,11 @@ namespace PixelRoad.UI
             }
         }
 
+        public void OnClickARBtn()
+        {
+
+        }
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD || PIXELROAD_LIVE_VECTOR_MAP
         private static bool ShouldEnableLiveVectorMap(MapConfig mapConfig)
         {
