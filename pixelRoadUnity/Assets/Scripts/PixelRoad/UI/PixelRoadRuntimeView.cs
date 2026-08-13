@@ -64,6 +64,7 @@ namespace PixelRoad.UI
         private int totalCount;
 
         public event Action CodexRequested;
+        public event Action ArRequested;
 
         private PixelRoadRuntimeView(MapConfig config)
         {
@@ -126,6 +127,7 @@ namespace PixelRoad.UI
             RectTransform topBar = CreateTopBar(canvas.transform);
             CreateCodexButton(topBar);
             CreateTitle(topBar);
+            CreateArButton(topBar);
             pixelToggleButton = CreatePixelToggle(topBar);
             pixelToggleText = pixelToggleButton.GetComponentInChildren<TMP_Text>();
             CreateZoomControls(canvas.transform);
@@ -399,6 +401,17 @@ namespace PixelRoad.UI
             rect.pivot = new Vector2(0f, 0.5f);
             rect.anchoredPosition = new Vector2(16f, 0f);
             button.onClick.AddListener(() => CodexRequested?.Invoke());
+        }
+
+        private void CreateArButton(RectTransform topBar)
+        {
+            Button button = CreateButton("ArButton", topBar, "AR", new Vector2(88f, 48f));
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.pivot = new Vector2(1f, 0.5f);
+            rect.anchoredPosition = new Vector2(-128f, 0f);
+            button.onClick.AddListener(() => ArRequested?.Invoke());
         }
 
         private void CreateTitle(RectTransform topBar)

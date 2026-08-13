@@ -1,0 +1,12 @@
+{
+  "_docs": "각 값의 의미는 Assets/Scripts/PixelRoad/Data/ARConfig.cs 주석 참고. JSON은 주석을 지원하지 않으므로 이 키만 메모용으로 두며, 파싱 시 무시된다.",
+  "arDisplayRadiusMeters": 1500,
+  "headingSmoothingFactor": 0.15,
+  "iconPixelSize": 96,
+  "edgeArrowPixelSize": 64,
+  "edgeMarginPixels": 48,
+  "spotIconResourceFolder": "PixelRoad/Icons",
+  "defaultSpotIconName": "default",
+  "desiredAccuracyMeters": 15,
+  "locationUpdateDistanceMeters": 3
+}

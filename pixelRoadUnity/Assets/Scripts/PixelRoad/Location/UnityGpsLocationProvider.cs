@@ -1,5 +1,4 @@
 using System.Collections;
-using PixelRoad.Data;
 using UnityEngine;
 
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -10,7 +9,8 @@ namespace PixelRoad.Location
 {
     public sealed class UnityGpsLocationProvider : ILocationProvider
     {
-        private readonly MapConfig config;
+        private readonly float desiredAccuracyMeters;
+        private readonly float locationUpdateDistanceMeters;
         private GeoLocationSample current;
         private string statusText = "GPS starting";
 
@@ -24,9 +24,10 @@ namespace PixelRoad.Location
             get { return statusText; }
         }
 
-        public UnityGpsLocationProvider(MapConfig config)
+        public UnityGpsLocationProvider(float desiredAccuracyMeters, float locationUpdateDistanceMeters)
         {
-            this.config = config;
+            this.desiredAccuracyMeters = desiredAccuracyMeters;
+            this.locationUpdateDistanceMeters = locationUpdateDistanceMeters;
         }
 
         public IEnumerator Start()
@@ -50,7 +51,7 @@ namespace PixelRoad.Location
                 yield break;
             }
 
-            Input.location.Start(config.desiredAccuracyMeters, config.locationUpdateDistanceMeters);
+            Input.location.Start(desiredAccuracyMeters, locationUpdateDistanceMeters);
             int maxWaitSeconds = 20;
             while (Input.location.status == LocationServiceStatus.Initializing && maxWaitSeconds > 0)
             {

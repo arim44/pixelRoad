@@ -1,10 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
+using PixelRoad.AR;
 using PixelRoad.Data;
 using PixelRoad.Geo;
 using PixelRoad.Location;
 using PixelRoad.UI;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace PixelRoad.Runtime
 {
@@ -12,6 +14,7 @@ namespace PixelRoad.Runtime
     {
         private const string ConfigResourcePath = "PixelRoad/map_config";
         private const string UnlockStorageKey = "PixelRoad.UnlockedSpots";
+        private const string MapSceneName = "MapScene";
 
         [SerializeField]
         private bool centerOnFirstLocation = true;
@@ -26,10 +29,19 @@ namespace PixelRoad.Runtime
         private float unlockQueryRadiusMeters;
         private bool centeredOnce;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void Bootstrap()
+        // RuntimeInitializeOnLoadMethod는 앱 실행 중 딱 한 번만 실행되므로(최초 씬 로드 직후),
+        // MapScene을 다시 불러왔을 때(ARScene에서 돌아오는 경우 등)도 자기 자신을 재생성하려면
+        // SceneManager.sceneLoaded를 구독해야 한다.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void RegisterBootstrap()
         {
-            if (FindFirstObjectByType<PixelRoadApp>() != null)
+            SceneManager.sceneLoaded -= OnMapSceneLoaded;
+            SceneManager.sceneLoaded += OnMapSceneLoaded;
+        }
+
+        private static void OnMapSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != MapSceneName || FindFirstObjectByType<PixelRoadApp>() != null)
             {
                 return;
             }
@@ -49,6 +61,7 @@ namespace PixelRoad.Runtime
 
             view = PixelRoadRuntimeView.Create(config);
             view.CodexRequested += ToggleCodex;
+            view.ArRequested += OnArRequested;
             for (int i = 0; i < spots.Count; i++)
             {
                 view.AddSpotMarker(spots[i], SelectSpot);
@@ -64,7 +77,7 @@ namespace PixelRoad.Runtime
                 config.editorMoveSpeedMetersPerSecond,
                 config.editorFastMoveMultiplier);
 #else
-            locationProvider = new UnityGpsLocationProvider(config);
+            locationProvider = new UnityGpsLocationProvider(config.desiredAccuracyMeters, config.locationUpdateDistanceMeters);
 #endif
             yield return StartCoroutine(locationProvider.Start());
             view.SetLocationStatus(locationProvider.StatusText);
@@ -194,6 +207,20 @@ namespace PixelRoad.Runtime
         private void ToggleCodex()
         {
             view.SetCodexVisible(!view.IsCodexVisible());
+        }
+
+        private void OnArRequested()
+        {
+            if (!currentLocation.IsValid)
+            {
+                view.SetLocationStatus("GPS 위치가 필요합니다");
+                return;
+            }
+
+            ARConfig arConfig = ArSceneLauncher.LoadConfig();
+            List<SpotRuntimeState> nearby = spatialIndex.Query(
+                currentLocation.Latitude, currentLocation.Longitude, arConfig.arDisplayRadiusMeters);
+            StartCoroutine(ArSceneLauncher.LoadArScene(nearby, currentLocation));
         }
 
         private void RefreshProgress()

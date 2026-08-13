@@ -36,6 +36,21 @@ namespace PixelRoad.Geo
             return EarthRadiusMeters * c;
         }
 
+        /// <summary>A 지점에서 B 지점을 바라보는 초기 방위각(진북 기준 0~360도, 시계 방향).</summary>
+        public static double BearingDegrees(double latA, double lonA, double latB, double lonB)
+        {
+            double lat1 = DegreesToRadians(latA);
+            double lat2 = DegreesToRadians(latB);
+            double dLon = DegreesToRadians(lonB - lonA);
+
+            double y = System.Math.Sin(dLon) * System.Math.Cos(lat2);
+            double x = System.Math.Cos(lat1) * System.Math.Sin(lat2) -
+                       System.Math.Sin(lat1) * System.Math.Cos(lat2) * System.Math.Cos(dLon);
+
+            double bearingDegrees = RadiansToDegrees(System.Math.Atan2(y, x));
+            return (bearingDegrees + 360.0) % 360.0;
+        }
+
         private static double LongitudeToMercatorX(double longitude)
         {
             return DegreesToRadians(longitude);
@@ -51,6 +66,11 @@ namespace PixelRoad.Geo
         private static double DegreesToRadians(double degrees)
         {
             return degrees * System.Math.PI / 180.0;
+        }
+
+        private static double RadiansToDegrees(double radians)
+        {
+            return radians * 180.0 / System.Math.PI;
         }
     }
 }
