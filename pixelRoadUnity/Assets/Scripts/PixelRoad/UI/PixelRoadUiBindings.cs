@@ -21,7 +21,6 @@ namespace PixelRoad.UI
 
         [Header("Top and navigation")]
         [SerializeField] private Button codexButton;
-        [SerializeField] private Button arButton;
         [SerializeField] private TMP_Text titleText;
         [SerializeField] private Button pixelToggleButton;
         [SerializeField] private TMP_Text pixelToggleText;
@@ -51,7 +50,6 @@ namespace PixelRoad.UI
         public Image UserMarker => userMarker;
         public TMP_Text MapNoticeText => mapNoticeText;
         public Button CodexButton => codexButton;
-        public Button ARButton => arButton;
         public TMP_Text TitleText => titleText;
         public Button PixelToggleButton => pixelToggleButton;
         public TMP_Text PixelToggleText => pixelToggleText;
@@ -77,7 +75,6 @@ namespace PixelRoad.UI
             Require(userMarker, nameof(userMarker));
             Require(mapNoticeText, nameof(mapNoticeText));
             Require(codexButton, nameof(codexButton));
-            Require(arButton, nameof(arButton));
             Require(titleText, nameof(titleText));
             Require(pixelToggleButton, nameof(pixelToggleButton));
             Require(pixelToggleText, nameof(pixelToggleText));

@@ -213,13 +213,6 @@ namespace PixelRoad.Editor
             codexButtonRect.pivot = new Vector2(0f, 0.5f);
             codexButtonRect.anchoredPosition = new Vector2(16f, 0f);
 
-            Button arButton = CreateButton("ARButton", topBar, "AR", new Vector2(88f, 48f));
-            RectTransform arButtonRect = arButton.GetComponent<RectTransform>();
-            arButtonRect.anchorMin = new Vector2(1f, 0.5f);
-            arButtonRect.anchorMax = new Vector2(1f, 0.5f);
-            arButtonRect.pivot = new Vector2(1f, 0.5f);
-            arButtonRect.anchoredPosition = new Vector2(-128f, 0f);
-
             TMP_Text title = CreateText("Title", topBar, "픽셀 로드", 24, TextAlignmentOptions.Center);
             title.rectTransform.anchorMin = new Vector2(0.24f, 0f);
             title.rectTransform.anchorMax = new Vector2(0.76f, 1f);
@@ -313,7 +306,6 @@ namespace PixelRoad.Editor
             Assign(bindings, "userMarker", userMarker);
             Assign(bindings, "mapNoticeText", mapNotice);
             Assign(bindings, "codexButton", codexButton);
-            Assign(bindings, "arButton", arButton);
             Assign(bindings, "titleText", title);
             Assign(bindings, "pixelToggleButton", pixelToggle);
             Assign(bindings, "pixelToggleText", pixelText);

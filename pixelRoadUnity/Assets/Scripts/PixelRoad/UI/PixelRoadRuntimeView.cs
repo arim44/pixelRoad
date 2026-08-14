@@ -137,7 +137,6 @@ namespace PixelRoad.UI
 
             uiBindings.TitleText.text = config.appTitle;
             uiBindings.CodexButton.onClick.AddListener(() => CodexRequested?.Invoke());
-            uiBindings.ARButton.onClick.AddListener(OnClickARBtn);
             pixelToggleButton.onClick.AddListener(TogglePixelFilter);
             uiBindings.CodexCloseButton.onClick.AddListener(() => SetCodexVisible(false));
 

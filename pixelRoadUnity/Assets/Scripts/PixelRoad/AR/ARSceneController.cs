@@ -51,7 +51,14 @@ namespace PixelRoad.AR
             locationProvider = new SimulatedLocationProvider(currentLocation.Latitude, currentLocation.Longitude);
             headingProvider = new SimulatedHeadingProvider();
 #else
-            locationProvider = new UnityGpsLocationProvider(config.desiredAccuracyMeters, config.locationUpdateDistanceMeters);
+            // UnityGpsLocationProvider는 지도 화면과 공유하는 MapConfig를 그대로 받는다(변경하지 않기 위해).
+            // ARScene은 MapConfig에 의존하지 않으므로, ARConfig 값만 옮겨 담은 임시 인스턴스를 만들어 넘긴다.
+            MapConfig gpsConfig = new MapConfig
+            {
+                desiredAccuracyMeters = config.desiredAccuracyMeters,
+                locationUpdateDistanceMeters = config.locationUpdateDistanceMeters
+            };
+            locationProvider = new UnityGpsLocationProvider(gpsConfig);
             headingProvider = new FusedHeadingProvider(arCamera.transform);
 #endif
             yield return StartCoroutine(locationProvider.Start());
