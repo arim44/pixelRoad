@@ -87,22 +87,24 @@ namespace PixelRoad.AR
             statusText.color = color;
         }
 
-        public void ShowOnScreen(ARLandmarkSnapshot landmark, float anchoredX, double distanceMeters)
+        /// <summary>anchoredY는 카메라를 위/아래로 기울인 정도(피치)에 따라 계산된 세로 위치다.</summary>
+        public void ShowOnScreen(ARLandmarkSnapshot landmark, float anchoredX, float anchoredY, double distanceMeters)
         {
             LandmarkBinding binding = GetOrCreateBinding(landmark);
             binding.Root.gameObject.SetActive(true);
             binding.Icon.sprite = binding.NormalSprite;
             binding.Icon.rectTransform.sizeDelta = new Vector2(config.iconPixelSize, config.iconPixelSize);
             binding.Icon.rectTransform.localEulerAngles = Vector3.zero;
-            binding.Root.anchoredPosition = new Vector2(anchoredX, 0f);
+            binding.Root.anchoredPosition = new Vector2(anchoredX, anchoredY);
             binding.DistanceLabel.text = FormatDistance(distanceMeters);
         }
 
         /// <summary>
-        /// 화면 가장자리 방향 화살표를 표시한다. sameSideSlotIndex는 이번 프레임에 같은 쪽(좌/우)에
-        /// 표시되는 화살표들 사이에서 이 랜드마크의 순번(0부터)이다 - 여러 개가 겹치지 않도록 세로로 쌓는 데 쓴다.
+        /// 화면 가장자리 방향 화살표를 표시한다. baseAnchoredY는 카메라 피치에 따른 기본 세로 위치이고,
+        /// sameSideSlotIndex는 이번 프레임에 같은 쪽(좌/우)에 표시되는 화살표들 사이에서 이 랜드마크의
+        /// 순번(0부터)이다 - baseAnchoredY를 기준으로 위/아래로 떨어뜨려 쌓아 여러 개가 겹치지 않게 한다.
         /// </summary>
-        public void ShowAtEdge(ARLandmarkSnapshot landmark, bool rightSide, double distanceMeters, int sameSideSlotIndex)
+        public void ShowAtEdge(ARLandmarkSnapshot landmark, bool rightSide, float baseAnchoredY, double distanceMeters, int sameSideSlotIndex)
         {
             LandmarkBinding binding = GetOrCreateBinding(landmark);
             binding.Root.gameObject.SetActive(true);
@@ -112,7 +114,7 @@ namespace PixelRoad.AR
 
             float halfWidth = overlayRoot.rect.width * 0.5f;
             float x = Mathf.Max(0f, halfWidth - config.edgeMarginPixels);
-            float y = StackedOffsetY(sameSideSlotIndex, config.edgeStackSpacingPixels);
+            float y = baseAnchoredY + StackedOffsetY(sameSideSlotIndex, config.edgeStackSpacingPixels);
             binding.Root.anchoredPosition = new Vector2(rightSide ? x : -x, y);
             binding.DistanceLabel.text = FormatDistance(distanceMeters);
         }

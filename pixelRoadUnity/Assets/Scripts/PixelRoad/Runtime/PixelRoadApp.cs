@@ -89,7 +89,7 @@ namespace PixelRoad.Runtime
                 config.editorMoveSpeedMetersPerSecond,
                 config.editorFastMoveMultiplier);
 #else
-            locationProvider = new UnityGpsLocationProvider(config.desiredAccuracyMeters, config.locationUpdateDistanceMeters);
+            locationProvider = new UnityGpsLocationProvider(config);
 #endif
             yield return StartCoroutine(locationProvider.Start());
             view.SetLocationStatus(locationProvider.StatusText);

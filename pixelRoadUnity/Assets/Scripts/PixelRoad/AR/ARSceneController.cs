@@ -143,7 +143,15 @@ namespace PixelRoad.AR
         private void UpdateLandmarks()
         {
             float horizontalFov = ARCompassMath.HorizontalFovDegrees(arCamera);
+            float verticalFov = arCamera.fieldOfView;
             float halfCanvasWidth = overlayRoot.rect.width * 0.5f;
+            float halfCanvasHeight = overlayRoot.rect.height * 0.5f;
+
+            // 랜드마크는 고도 정보가 없어 전부 "지평선" 높이에 있다고 가정한다.
+            // 카메라를 위/아래로 기울인 만큼(피치) 지평선이 화면에서 반대로 움직이는 것과 같은 효과를 준다.
+            float pitchDegrees = ARCompassMath.NormalizeAngle(arCamera.transform.eulerAngles.x);
+            float screenY = ARCompassMath.DeltaToScreenOffset(pitchDegrees, verticalFov, halfCanvasHeight);
+
             int leftEdgeCount = 0;
             int rightEdgeCount = 0;
             int visibleCount = 0;
@@ -173,14 +181,14 @@ namespace PixelRoad.AR
 
                 if (Mathf.Abs(delta) <= horizontalFov * 0.5f)
                 {
-                    float screenX = ARCompassMath.DeltaToScreenX(delta, horizontalFov, halfCanvasWidth);
-                    view.ShowOnScreen(landmark, screenX, distance);
+                    float screenX = ARCompassMath.DeltaToScreenOffset(delta, horizontalFov, halfCanvasWidth);
+                    view.ShowOnScreen(landmark, screenX, screenY, distance);
                 }
                 else
                 {
                     bool rightSide = delta > 0f;
                     int slotIndex = rightSide ? rightEdgeCount++ : leftEdgeCount++;
-                    view.ShowAtEdge(landmark, rightSide, distance, slotIndex);
+                    view.ShowAtEdge(landmark, rightSide, screenY, distance, slotIndex);
                 }
             }
 

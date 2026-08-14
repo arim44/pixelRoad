@@ -49,7 +49,7 @@ namespace PixelRoad.AR
             text.text = value;
             text.fontSize = size;
             text.alignment = alignment;
-            text.enableWordWrapping = true;
+            text.textWrappingMode = TextWrappingModes.Normal;
             text.overflowMode = TextOverflowModes.Ellipsis;
             text.color = color;
             TMP_FontAsset font = GetPixelFont();

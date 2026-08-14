@@ -31,11 +31,14 @@ namespace PixelRoad.AR
             return horizontalFovRad * Mathf.Rad2Deg;
         }
 
-        /// <summary>헤딩 대비 베어링 델타(도, -180~180)를 캔버스 절반 폭 기준 x좌표로 선형 매핑한다.</summary>
-        public static float DeltaToScreenX(float deltaDegrees, float horizontalFovDegrees, float halfCanvasWidth)
+        /// <summary>
+        /// 각도 델타(도)를 시야각(FOV) 대비 화면 절반 크기 기준 좌표로 선형 매핑한다.
+        /// 가로(헤딩 대비 베어링 → x)와 세로(카메라 피치 대비 랜드마크 고도 → y) 매핑에 공용으로 쓴다.
+        /// </summary>
+        public static float DeltaToScreenOffset(float deltaDegrees, float fovDegrees, float halfCanvasExtent)
         {
-            float normalized = Mathf.Clamp(deltaDegrees / (horizontalFovDegrees * 0.5f), -1f, 1f);
-            return normalized * halfCanvasWidth;
+            float normalized = Mathf.Clamp(deltaDegrees / (fovDegrees * 0.5f), -1f, 1f);
+            return normalized * halfCanvasExtent;
         }
     }
 }
