@@ -19,6 +19,7 @@ namespace PixelRoad.AR
     {
         private const string MapSceneName = "MapScene";
         private const float NoLandmarksTimeoutSeconds = 5f;
+        private const float ToastDisplaySeconds = 3f;
 
         [SerializeField]
         private Camera arCamera;
@@ -39,12 +40,17 @@ namespace PixelRoad.AR
         private bool ready;
         private float noLandmarksTimer;
         private bool returningToMap;
+        private Texture2D lastThumbnailTexture;
+        private string lastCaptureUri;
+        private Coroutine toastHideRoutine;
 
         private IEnumerator Start()
         {
             config = ARSceneLauncher.LoadConfig();
             view = new AROverlayView(overlayRoot, config);
             view.CaptureRequested += OnCaptureRequested;
+            view.ThumbnailClicked += OnThumbnailClicked;
+            RestoreLastCapture();
             currentLocation = ARHandoff.InitialLocation;
 
 #if UNITY_EDITOR
@@ -98,10 +104,22 @@ namespace PixelRoad.AR
             if (view != null)
             {
                 view.CaptureRequested -= OnCaptureRequested;
+                view.ThumbnailClicked -= OnThumbnailClicked;
             }
 
             locationProvider?.Stop();
             headingProvider?.Stop();
+            DestroyLastThumbnailTexture();
+        }
+
+        /// <summary>이전 세션에 찍어 둔 캡처가 있으면 복원해서 썸네일에 바로 보여준다.</summary>
+        private void RestoreLastCapture()
+        {
+            if (AndroidGalleryExporter.TryLoadCachedCapture(out Texture2D cachedTexture, out string cachedUri))
+            {
+                lastCaptureUri = cachedUri;
+                ShowThumbnail(cachedTexture);
+            }
         }
 
         private void OnCaptureRequested()
@@ -109,22 +127,76 @@ namespace PixelRoad.AR
             StartCoroutine(CaptureScreenshotRoutine());
         }
 
+        private void OnThumbnailClicked()
+        {
+            // Application.OpenURL은 실패해도 예외를 던지지 않는 경우가 많아 "열기 실패 = 원본 삭제됨"으로
+            // 단정할 수 없다. 그래서 열기 실패 시 캐시를 지우던 이전 로직은 제거했다 - 여기서는 토스트만 보여준다.
+            if (!AndroidGalleryExporter.OpenInGallery(lastCaptureUri, out string errorMessage))
+            {
+                ShowToast(string.IsNullOrEmpty(errorMessage) ? "사진을 열 수 없습니다." : "사진을 열 수 없습니다: " + errorMessage);
+            }
+        }
+
+        private void ShowToast(string message)
+        {
+            if (toastHideRoutine != null)
+            {
+                StopCoroutine(toastHideRoutine);
+            }
+
+            view.ShowToast(message);
+            toastHideRoutine = StartCoroutine(HideToastAfterDelay());
+        }
+
+        private IEnumerator HideToastAfterDelay()
+        {
+            yield return new WaitForSeconds(ToastDisplaySeconds);
+            view.HideToast();
+            toastHideRoutine = null;
+        }
+
         /// <summary>
-        /// 촬영 버튼만 감춘 채 현재 프레임(카메라 패스스루 + 랜드마크 오버레이)을 캡처해 갤러리에 저장한다.
+        /// 촬영 버튼과 뒤로가기 버튼만 감춘 채 현재 프레임(카메라 패스스루 + 랜드마크 오버레이)을 캡처해 갤러리에 저장하고,
+        /// 다음 실행에서도 복원할 수 있도록 로컬에 캐시한 뒤, 화면 오른쪽 아래에 미리보기 썸네일을 띄운다.
         /// </summary>
         private IEnumerator CaptureScreenshotRoutine()
         {
-            view.SetCaptureButtonVisible(false);
+            view.SetCaptureUiVisible(false);
             yield return new WaitForEndOfFrame();
 
             Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
-            view.SetCaptureButtonVisible(true);
+            view.SetCaptureUiVisible(true);
 
             byte[] pngBytes = screenshot.EncodeToPNG();
-            Destroy(screenshot);
-
             string fileName = "PixelRoad_AR_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".png";
-            AndroidGalleryExporter.SaveScreenshot(pngBytes, fileName, config.screenshotGalleryFolder);
+            string uriString = AndroidGalleryExporter.SaveScreenshot(pngBytes, fileName, config.screenshotGalleryFolder);
+
+            lastCaptureUri = uriString;
+            AndroidGalleryExporter.CacheLastCapture(pngBytes, uriString);
+
+            ShowThumbnail(screenshot);
+        }
+
+        /// <summary>썸네일에 텍스처를 띄운다. 자동으로 사라지지 않고, 다음 캡처가 있을 때까지(또는 씬 종료까지) 계속 보인다.</summary>
+        private void ShowThumbnail(Texture2D texture)
+        {
+            DestroyLastThumbnailTexture();
+
+            lastThumbnailTexture = texture;
+            Sprite sprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f));
+            view.ShowCapturedThumbnail(sprite);
+        }
+
+        private void DestroyLastThumbnailTexture()
+        {
+            if (lastThumbnailTexture != null)
+            {
+                Destroy(lastThumbnailTexture);
+                lastThumbnailTexture = null;
+            }
         }
 
         private void UpdateSmoothedHeading(float rawHeading)

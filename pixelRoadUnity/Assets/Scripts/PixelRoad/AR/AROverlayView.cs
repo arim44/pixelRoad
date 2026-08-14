@@ -18,6 +18,10 @@ namespace PixelRoad.AR
         private const float MinBlinkAlpha = 0.25f;
         private const float CaptureButtonSize = 88f;
         private const float CaptureButtonBottomMargin = 48f;
+        private const float ThumbnailWidth = 160f;
+        private const float ThumbnailHeight = 220f;
+        private const float ThumbnailMargin = 16f;
+        private const float ThumbnailFrameBorder = 6f;
 
         private static readonly Color32 UnlockedIconTint = Color.white;
         private static readonly Color32 LockedIconTint = new Color32(124, 120, 112, 235);
@@ -30,10 +34,16 @@ namespace PixelRoad.AR
         private readonly Dictionary<string, LandmarkBinding> bindings = new Dictionary<string, LandmarkBinding>();
         private readonly Sprite arrowSprite;
         private readonly TMP_Text statusText;
+        private readonly TMP_Text toastText;
         private readonly Button captureButton;
+        private readonly Button backButton;
+        private readonly Image thumbnailImage;
 
         /// <summary>촬영 버튼이 눌렸을 때 발생한다. 실제 캡처·저장은 코루틴이 필요해 ARSceneController가 처리한다.</summary>
         public event Action CaptureRequested;
+
+        /// <summary>썸네일을 눌렀을 때 발생한다. 갤러리 앱을 여는 건 플랫폼 API가 필요해 ARSceneController가 처리한다.</summary>
+        public event Action ThumbnailClicked;
 
         public AROverlayView(RectTransform overlayRoot, ARConfig config)
         {
@@ -42,15 +52,51 @@ namespace PixelRoad.AR
             iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName);
             arrowSprite = ARUiFactory.CreateTriangleSprite(config.edgeArrowPixelSize, TextColor);
 
-            CreateBackButton();
+            backButton = CreateBackButton();
             statusText = CreateStatusText();
+            toastText = CreateToastText();
             captureButton = CreateCaptureButton();
+            thumbnailImage = CreateCaptureThumbnail();
         }
 
-        /// <summary>캡처 순간에만 버튼 자신을 화면에서 감춰서, 찍힌 사진에 버튼이 함께 찍히지 않게 한다.</summary>
-        public void SetCaptureButtonVisible(bool visible)
+        /// <summary>화면 위쪽에 짧은 안내 문구를 잠깐 보여준다(예: 갤러리 열기 실패). 자동으로 사라지지는 않고, 다시 호출하면 내용만 갱신된다.</summary>
+        public void ShowToast(string message)
+        {
+            toastText.text = message;
+            toastText.gameObject.SetActive(true);
+        }
+
+        public void HideToast()
+        {
+            toastText.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// 캡처 순간에만 촬영 버튼·뒤로가기 버튼·이전 썸네일을 화면에서 감춰서, 찍힌 사진에 UI가 함께 찍히지 않게 한다.
+        /// 썸네일은 감추기만 하고 다시 켜지는 않는다 - 캡처 직후 ShowCapturedThumbnail이 새 사진으로 바로 다시 띄우기 때문이다.
+        /// </summary>
+        public void SetCaptureUiVisible(bool visible)
         {
             captureButton.gameObject.SetActive(visible);
+            backButton.gameObject.SetActive(visible);
+            if (!visible)
+            {
+                thumbnailImage.transform.parent.gameObject.SetActive(false);
+            }
+        }
+
+        /// <summary>방금 찍은 사진을 화면 오른쪽 아래에 작게 띄운다. 스프라이트 소유권은 호출측이 계속 갖고, 다 쓰면 텍스처를 직접 정리해야 한다.</summary>
+        public void ShowCapturedThumbnail(Sprite sprite)
+        {
+            thumbnailImage.sprite = sprite;
+            thumbnailImage.transform.parent.gameObject.SetActive(true);
+        }
+
+        /// <summary>썸네일을 감춘다 - 원본 사진이 갤러리에서 삭제된 것으로 확인됐을 때 등에 쓴다.</summary>
+        public void HideCapturedThumbnail()
+        {
+            thumbnailImage.sprite = null;
+            thumbnailImage.transform.parent.gameObject.SetActive(false);
         }
 
         /// <summary>ARCore 미지원 등 랜드마크 갱신을 멈추고 안내만 보여줘야 할 때 쓴다. null/빈 문자열이면 숨긴다.</summary>
@@ -195,7 +241,7 @@ namespace PixelRoad.AR
                 : ARUiFactory.CreateDiamondSprite(config.iconPixelSize, FallbackIconColor);
         }
 
-        private void CreateBackButton()
+        private Button CreateBackButton()
         {
             Button button = ARUiFactory.CreateButton(
                 "BackButton",
@@ -214,6 +260,7 @@ namespace PixelRoad.AR
                 ARHandoff.Clear();
                 SceneManager.LoadScene(MapSceneName);
             });
+            return button;
         }
 
         /// <summary>화면 아래쪽 가운데의 원형 촬영 버튼. 카메라 셔터 버튼 모양을 흉내낸 흰색 원이다.</summary>
@@ -237,6 +284,42 @@ namespace PixelRoad.AR
             return button;
         }
 
+        /// <summary>
+        /// 화면 오른쪽 아래의 작은 촬영 결과 미리보기. 테두리 프레임 안에 실제 사진을 채우고,
+        /// 프레임 전체를 눌러 갤러리로 이동할 수 있게 Button을 붙인다.
+        /// 반환하는 Image의 부모 GameObject가 곧 프레임이다(표시/숨김은 그 부모를 켜고 끈다).
+        /// </summary>
+        private Image CreateCaptureThumbnail()
+        {
+            GameObject frame = ARUiFactory.CreateObject("CaptureThumbnailFrame", overlayRoot);
+            RectTransform frameRect = frame.GetComponent<RectTransform>();
+            frameRect.anchorMin = new Vector2(1f, 0f);
+            frameRect.anchorMax = new Vector2(1f, 0f);
+            frameRect.pivot = new Vector2(1f, 0f);
+            frameRect.sizeDelta = new Vector2(ThumbnailWidth, ThumbnailHeight);
+            frameRect.anchoredPosition = new Vector2(-ThumbnailMargin, ThumbnailMargin);
+
+            Image frameBackground = frame.AddComponent<Image>();
+            frameBackground.color = new Color32(18, 17, 15, 220);
+
+            Button frameButton = frame.AddComponent<Button>();
+            frameButton.targetGraphic = frameBackground;
+            frameButton.onClick.AddListener(() => ThumbnailClicked?.Invoke());
+
+            RectTransform photoRect = ARUiFactory.CreateRect("Photo", frame.transform);
+            photoRect.anchorMin = Vector2.zero;
+            photoRect.anchorMax = Vector2.one;
+            photoRect.offsetMin = new Vector2(ThumbnailFrameBorder, ThumbnailFrameBorder);
+            photoRect.offsetMax = new Vector2(-ThumbnailFrameBorder, -ThumbnailFrameBorder);
+
+            Image photo = photoRect.gameObject.AddComponent<Image>();
+            photo.preserveAspect = true;
+            photo.raycastTarget = false;
+
+            frame.SetActive(false);
+            return photo;
+        }
+
         private TMP_Text CreateStatusText()
         {
             TMP_Text text = ARUiFactory.CreateText(
@@ -250,6 +333,26 @@ namespace PixelRoad.AR
             RectTransform rect = text.rectTransform;
             rect.anchorMin = new Vector2(0.1f, 0.4f);
             rect.anchorMax = new Vector2(0.9f, 0.6f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            text.gameObject.SetActive(false);
+            return text;
+        }
+
+        /// <summary>화면 위쪽에 짧게 뜨는 안내 문구. 화면 정중앙(상태 메시지 자리)과 겹치지 않게 그 위쪽에 둔다.</summary>
+        private TMP_Text CreateToastText()
+        {
+            TMP_Text text = ARUiFactory.CreateText(
+                "Toast",
+                overlayRoot,
+                string.Empty,
+                18,
+                TextAlignmentOptions.Center,
+                TextColor);
+            text.raycastTarget = false;
+            RectTransform rect = text.rectTransform;
+            rect.anchorMin = new Vector2(0.1f, 0.68f);
+            rect.anchorMax = new Vector2(0.9f, 0.76f);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             text.gameObject.SetActive(false);
