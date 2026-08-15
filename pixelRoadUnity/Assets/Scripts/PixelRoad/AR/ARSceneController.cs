@@ -65,7 +65,8 @@ namespace PixelRoad.AR
                 locationUpdateDistanceMeters = config.locationUpdateDistanceMeters
             };
             locationProvider = new UnityGpsLocationProvider(gpsConfig);
-            headingProvider = new FusedHeadingProvider(arCamera.transform);
+            float? seedHeading = ARHandoff.HasInitialHeading ? (float?)ARHandoff.InitialHeadingDegrees : null;
+            headingProvider = new FusedHeadingProvider(arCamera.transform, seedHeading);
 #endif
             yield return StartCoroutine(locationProvider.Start());
             headingProvider.Start();

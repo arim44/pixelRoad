@@ -35,17 +35,44 @@ namespace PixelRoad.AR
             ARHandoff.Prepare(snapshot, currentLocation);
 
             LoadingScreenView loading = LoadingScreenView.Create();
+
+            // ARSession이 시작되면 기기에 따라 나침반 센서를 독점해 이후 Input.compass가 멈추는 경우가 많다.
+            // 아직 ARScene(및 ARSession)이 뜨기 전인 로딩 화면 동안 미리 나침반을 예열해서 진북 기준값을
+            // 확보해 둔다. ARScene 쪽에서는 이 값을 시작 기준으로 삼고, 라이브 나침반이 살아있는 기기에서는
+            // 그걸로 계속 보정한다.
+            Input.compass.enabled = true;
+
             AsyncOperation operation = SceneManager.LoadSceneAsync(ARSceneName);
             operation.allowSceneActivation = false;
             while (operation.progress < 0.9f)
             {
                 loading.SetProgress(operation.progress / 0.9f);
+                CaptureCompassHeading();
                 yield return null;
             }
 
             loading.SetProgress(1f);
-            yield return new WaitForSeconds(SettleSeconds);
+            float settleElapsed = 0f;
+            while (settleElapsed < SettleSeconds)
+            {
+                CaptureCompassHeading();
+                settleElapsed += Time.deltaTime;
+                yield return null;
+            }
+
             operation.allowSceneActivation = true;
+        }
+
+        private static void CaptureCompassHeading()
+        {
+            if (!Input.compass.enabled)
+            {
+                return;
+            }
+
+            bool hasLocationFix = Input.location.status == LocationServiceStatus.Running;
+            float heading = hasLocationFix ? Input.compass.trueHeading : Input.compass.magneticHeading;
+            ARHandoff.SetInitialHeading(heading);
         }
 
         private static List<ARLandmarkSnapshot> BuildSnapshot(IReadOnlyList<SpotRuntimeState> spots)

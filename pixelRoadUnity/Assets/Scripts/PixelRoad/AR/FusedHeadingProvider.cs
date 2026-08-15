@@ -13,6 +13,8 @@ namespace PixelRoad.AR
         private const float CompassChangeEpsilonDegrees = 0.05f;
 
         private readonly Transform cameraTransform;
+        private readonly bool hasSeedHeading;
+        private readonly float seedHeadingDegrees;
         private float lastCompassReading;
         private bool hasLastCompassReading;
         private float northOffsetDegrees;
@@ -21,14 +23,27 @@ namespace PixelRoad.AR
         public float HeadingDegrees { get; private set; }
         public bool IsAvailable { get { return true; } }
 
-        public FusedHeadingProvider(Transform cameraTransform)
+        /// <summary>
+        /// seedHeadingDegrees는 ARSession이 뜨기 전(나침반 센서를 독점당하기 전)에 미리 예열해 둔 진북 값이다.
+        /// 있으면 첫 프레임부터 이 값을 기준으로 삼아, 라이브 나침반 갱신을 영영 못 받는 기기에서도 카메라의
+        /// 임의 초기 요(yaw) 값이 진북으로 오인되는 것을 막는다.
+        /// </summary>
+        public FusedHeadingProvider(Transform cameraTransform, float? seedHeadingDegrees = null)
         {
             this.cameraTransform = cameraTransform;
+            this.hasSeedHeading = seedHeadingDegrees.HasValue;
+            this.seedHeadingDegrees = seedHeadingDegrees ?? 0f;
         }
 
         public void Start()
         {
             Input.compass.enabled = true;
+
+            if (hasSeedHeading)
+            {
+                northOffsetDegrees = Normalize360(seedHeadingDegrees - cameraTransform.eulerAngles.y);
+                hasNorthOffset = true;
+            }
         }
 
         public void Tick(float deltaTime)
