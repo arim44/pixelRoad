@@ -62,6 +62,11 @@ namespace PixelRoad.UI
         private readonly GnbView gnb;
         private readonly QuitDialogView quitDialog;
 
+        // GNB 배경은 지도 위에서만 반투명이다. 색은 프리팹 값을 그대로 읽어 두 벌로 캐시한다.
+        private readonly Image gnbBackground;
+        private readonly Color32 gnbMapColor;
+        private readonly Color32 gnbOpaqueColor;
+
         // 자물쇠 아이콘은 배너를 갱신할 때마다 조회하지 않고 생성 시 한 번만 캐시한다.
         private readonly Sprite lockedIcon;
         private readonly Sprite unlockedIcon;
@@ -69,7 +74,6 @@ namespace PixelRoad.UI
         private bool pixelFilterEnabled;
         private bool mapRendered;
         private GeoLocation lastUserLocation;
-        private SpotRuntimeState selectedSpot;
 
         /// <summary>배너에 마지막으로 그린 남은거리(m). 같은 값이면 TMP를 다시 건드리지 않는다.</summary>
         private int lastBannerDistanceMeters = int.MinValue;
@@ -126,11 +130,21 @@ namespace PixelRoad.UI
             distanceLine = uiBindings.DistanceLine;
             distanceText = uiBindings.DistanceText;
             gnb = uiBindings.Gnb;
+            gnbBackground = gnb.GetComponent<Image>();
+            if (gnbBackground != null)
+            {
+                gnbMapColor = gnbBackground.color;
+                gnbOpaqueColor = new Color32(gnbMapColor.r, gnbMapColor.g, gnbMapColor.b, 255);
+            }
+
             quitDialog = uiBindings.QuitDialog;
             lockedIcon = iconLibrary.Load(LockedIconName);
             unlockedIcon = iconLibrary.Load(UnlockedIconName);
             codex = uiBindings.CodexView;
             mapInput = uiBindings.MapInput;
+
+            // 선택 상태는 GlobalValue에 있다. 도메인 리로드를 끄고 플레이할 때 이전 판의 값이 남지 않도록 비운다.
+            GlobalValue.Clear();
 
             codex.Initialize();
             quitDialog.Initialize(HideQuitDialog, () => QuitConfirmed?.Invoke());
@@ -425,7 +439,7 @@ namespace PixelRoad.UI
                 return;
             }
 
-            selectedSpot = state;
+            GlobalValue.SelectedSpot = state;
             lastUserLocation = currentLocation.IsValid ? currentLocation : lastUserLocation;
             landmarkBanner.SetActive(true);
             ApplyBanner(state, currentLocation);
@@ -435,12 +449,12 @@ namespace PixelRoad.UI
         /// <summary>선택을 해제하고 배너와 거리 표시를 감춘다.</summary>
         public void DeselectSpot()
         {
-            if (selectedSpot == null)
+            if (GlobalValue.SelectedSpot == null)
             {
                 return;
             }
 
-            selectedSpot = null;
+            GlobalValue.SelectedSpot = null;
             landmarkBanner.SetActive(false);
             distanceIndicator.SetActive(false);
         }
@@ -477,7 +491,7 @@ namespace PixelRoad.UI
         /// </summary>
         private void UpdateBannerDistance()
         {
-            if (selectedSpot == null)
+            if (GlobalValue.SelectedSpot == null)
             {
                 return;
             }
@@ -496,8 +510,8 @@ namespace PixelRoad.UI
             double distance = GeoProjection.DistanceMeters(
                 lastUserLocation.Latitude,
                 lastUserLocation.Longitude,
-                selectedSpot.Definition.Latitude,
-                selectedSpot.Definition.Longitude);
+                GlobalValue.SelectedSpot.Definition.Latitude,
+                GlobalValue.SelectedSpot.Definition.Longitude);
             int meters = (int)System.Math.Round(distance);
             if (meters == lastBannerDistanceMeters)
             {
@@ -514,14 +528,14 @@ namespace PixelRoad.UI
         /// </summary>
         private void ShowSelectedSpotDetail()
         {
-            if (selectedSpot == null || !selectedSpot.IsUnlocked)
+            if (GlobalValue.SelectedSpot == null || !GlobalValue.SelectedSpot.IsUnlocked)
             {
                 return;
             }
 
             codex.ShowDetail(
-                selectedSpot,
-                iconLibrary.Resolve(selectedSpot.Definition.IconKey, selectedSpot.Definition.Category));
+                GlobalValue.SelectedSpot,
+                iconLibrary.Resolve(GlobalValue.SelectedSpot.Definition.IconKey, GlobalValue.SelectedSpot.Definition.Category));
         }
 
         /// <summary>
@@ -530,7 +544,7 @@ namespace PixelRoad.UI
         /// </summary>
         private void UpdateDistanceIndicator()
         {
-            if (selectedSpot == null || liveMapRenderer == null || !lastUserLocation.IsValid)
+            if (GlobalValue.SelectedSpot == null || liveMapRenderer == null || !lastUserLocation.IsValid)
             {
                 distanceIndicator.SetActive(false);
                 return;
@@ -540,8 +554,8 @@ namespace PixelRoad.UI
                 lastUserLocation.Latitude,
                 lastUserLocation.Longitude);
             Vector2 to = liveMapRenderer.LatLonToViewportLocal(
-                selectedSpot.Definition.Latitude,
-                selectedSpot.Definition.Longitude);
+                GlobalValue.SelectedSpot.Definition.Latitude,
+                GlobalValue.SelectedSpot.Definition.Longitude);
 
             Vector2 delta = to - from;
             float length = delta.magnitude;
@@ -563,8 +577,8 @@ namespace PixelRoad.UI
             double distanceMeters = GeoProjection.DistanceMeters(
                 lastUserLocation.Latitude,
                 lastUserLocation.Longitude,
-                selectedSpot.Definition.Latitude,
-                selectedSpot.Definition.Longitude);
+                GlobalValue.SelectedSpot.Definition.Latitude,
+                GlobalValue.SelectedSpot.Definition.Longitude);
             distanceText.rectTransform.anchoredPosition = from + delta * 0.5f;
 
             // string.Format 대신 TMP의 무할당 SetText를 쓴다.
@@ -586,13 +600,28 @@ namespace PixelRoad.UI
             quitDialog.SetVisible(false);
         }
 
-        /// <summary>도감을 열고 닫는다. GNB 선택 표시도 함께 맞춰 준다.</summary>
+        /// <summary>도감을 열고 닫는다. GNB 선택 표시와 배경 투명도도 함께 맞춰 준다.</summary>
         public void SetCodexVisible(bool visible)
         {
             codex.SetVisible(visible);
 
             // 도감을 닫으면 지도로 돌아오므로 GNB 선택 상태도 함께 맞춘다.
             gnb.SetCurrent(visible ? GnbTab.Codex : GnbTab.Map);
+            ApplyGnbBackground(visible);
+        }
+
+        /// <summary>
+        /// GNB 배경 투명도를 화면에 맞춘다.
+        /// 지도에서는 지도가 비치도록 반투명, 도감처럼 꽉 찬 화면 위에서는 불투명으로 둔다.
+        /// </summary>
+        private void ApplyGnbBackground(bool panelOpen)
+        {
+            if (gnbBackground == null)
+            {
+                return;
+            }
+
+            gnbBackground.color = panelOpen ? gnbOpaqueColor : gnbMapColor;
         }
 
         /// <summary>도감이 열려 있는지. 뒤로 가기 처리에서 참고한다.</summary>
@@ -631,7 +660,7 @@ namespace PixelRoad.UI
                 ApplyMarkerVisual(marker.Image, state);
             }
 
-            if (selectedSpot != null && selectedSpot.Definition.Id == state.Definition.Id)
+            if (GlobalValue.SelectedSpot != null && GlobalValue.SelectedSpot.Definition.Id == state.Definition.Id)
             {
                 ApplyBanner(state, lastUserLocation);
             }

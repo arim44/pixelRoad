@@ -267,13 +267,7 @@ namespace PixelRoad.UI
                 return;
             }
 
-            detail.Show(
-                state.Definition.CollectionTitle,
-                state.Definition.DisplayName,
-                state.Definition.Description,
-                state.Definition.History,
-                icon,
-                !string.IsNullOrWhiteSpace(state.Definition.View360Image));
+            detail.Show(state.Definition, icon);
         }
 
         /// <summary>카드 뷰와 그 카드의 category를 묶어 둔다. 필터링할 때 정의를 다시 뒤지지 않기 위함이다.</summary>
