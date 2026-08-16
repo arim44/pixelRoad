@@ -2,7 +2,7 @@
 
 ## Demo data included in this repository
 
-- `Assets/Resources/PixelRoad/landmarks.json` contains manually curated demo landmarks in Gangnam, Munjeong, and Bupyeong. It replaces the previous CSV runtime source.
+- `Assets/Resources/PixelRoad/landmarks.json` contains manually curated demo landmarks in Gangnam, Munjeong, Bupyeong, central Seoul, Oryu-dong, and Pyeongtaek. It replaces the previous CSV runtime source.
 - `Assets/Resources/PixelRoad/Icons/` holds optional landmark marker sprites. Names are matched against the JSON `thumbnail` and `category` fields; see the folder README for the fallback order.
 
 ### Static PNG maps removed on 2026-08-08
@@ -21,6 +21,21 @@ Four landmarks near Munjeong Station and Bupyeong Station were added on 2026-08-
 - Bupyeong Culture Street: OpenStreetMap way `457217779`; its current market listing and role in the shopping district were cross-checked against the [official Bupyeong-gu market guide](https://www.icbp.go.kr/main/life/economy/market.jsp) and [walking-tour guide](https://www.icbp.go.kr/tour/info/course_shopping.jsp).
 
 Coordinates were manually retrieved from OpenStreetMap through Nominatim on 2026-08-07 and are stored directly in `landmarks.json`; the application does not call a geocoding service at runtime. The Bupyeong Modoo Mall point deliberately uses its accessible Exit 18 as the unlock anchor because the underground complex has no single surface center. OpenStreetMap attribution is already shown in the map UI and documented below. Since the static PNG maps were removed, every point is shown geographically only while the live vector map is available. All points remain listed in the codex and can still be unlocked by real geographic distance.
+
+## Seoul, Oryu-dong, Bupyeong, and Pyeongtaek expansion (2026-08-16)
+
+61 landmarks were added as IDs `23`–`83`, bringing the total to 83:
+
+- IDs `23`–`62`: 40 major Seoul landmarks (palaces, city gates, shrines, museums, parks, markets, and high-rises).
+- IDs `63`–`70`: 8 points around Oryu-dong Station in southwestern Guro-gu.
+- IDs `71`–`77`: 7 points around Bupyeong Station, extending the two 2026-08-07 Bupyeong entries.
+- IDs `78`–`83`: 6 points around Pyeongtaek Station in southern Gyeonggi.
+
+Every coordinate was retrieved from OpenStreetMap on 2026-08-16, by exact-name Overpass API lookup where an OSM element carries the Korean name, and by Nominatim search otherwise. Where OSM held both a point and an area for the same place, the area centroid was used. No geocoding service is called at runtime; the values are stored directly in `landmarks.json`.
+
+`visitRadius` was set per site size (50m for single monuments, up to 200m for large parks) and adjusted so that no two landmarks' radii overlap. `address` is still empty for all new entries, and unlike the four 2026-08-07 Munjeong/Bupyeong points these were **not** individually cross-checked against official municipal or tourism pages — that verification and the address fill are still outstanding. `shortDescription` and `history` are original summaries written for this project, not copied from OSM or any other source.
+
+Because the new points reach Pyeongtaek in the south and western Bupyeong, `map_config.json` `bounds` was widened to `southLat 36.95` and `westLon 126.68`. Attribution for the coordinate data is the same OpenStreetMap notice already shown in the map UI (ODbL, `© OpenStreetMap contributors`).
 
 ## Generated OSM map record
 
@@ -85,10 +100,10 @@ See `docs/CONTEST_COMPLIANCE.md` for the complete review gates. The official con
 ```json
 {
   "bounds": {
-    "northLat": 37.6700,
-    "southLat": 37.4900,
-    "westLon": 126.8600,
-    "eastLon": 127.0900
+    "northLat": 37.5868009304654,
+    "southLat": 36.9500000000000,
+    "westLon": 126.68000000000000,
+    "eastLon": 127.15231855246095
   }
 }
 ```

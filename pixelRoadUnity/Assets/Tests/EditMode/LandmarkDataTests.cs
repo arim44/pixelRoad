@@ -38,7 +38,7 @@ namespace PixelRoad.Tests.EditMode
             Assert.That(asset, Is.Not.Null);
 
             IList landmarks = Parse(asset.text);
-            Assert.That(landmarks, Has.Count.EqualTo(22));
+            Assert.That(landmarks, Has.Count.EqualTo(83));
             Assert.That(ReadProperty<int>(landmarks[0], "LandmarkId"), Is.EqualTo(1));
             Assert.That(ReadProperty<string>(landmarks[0], "DisplayName"), Is.EqualTo("테스트 기준점"));
             Assert.That(ReadProperty<string[]>(landmarks[0], "Tags"), Does.Contain("GPS"));

@@ -24,6 +24,7 @@ namespace PixelRoad.UI
         private readonly string defaultIconName;
         private bool missingIconLogged;
 
+        /// <summary>조회 기준이 될 Resources 폴더와 기본 아이콘 이름을 고정한다.</summary>
         public SpotIconLibrary(string resourceFolder, string defaultIconName)
         {
             folder = NormalizeFolder(resourceFolder);
@@ -77,6 +78,7 @@ namespace PixelRoad.UI
             return sprite;
         }
 
+        /// <summary>Resources에서 실제로 읽어 온다. Sprite로 임포트되지 않은 PNG는 Texture2D로 받아 스프라이트를 만든다.</summary>
         private Sprite LoadFromResources(string key)
         {
             string path = folder + key;
@@ -100,6 +102,7 @@ namespace PixelRoad.UI
                 100f);
         }
 
+        /// <summary>설정에 적힌 폴더 문자열을 `a/b/` 형태로 다듬어 키를 이어 붙일 수 있게 한다.</summary>
         private static string NormalizeFolder(string resourceFolder)
         {
             if (string.IsNullOrWhiteSpace(resourceFolder))

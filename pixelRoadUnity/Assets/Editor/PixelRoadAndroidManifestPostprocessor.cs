@@ -29,12 +29,16 @@ namespace PixelRoad.Editor
             get { return 1000; }
         }
 
+        /// <summary>이번 빌드가 개발 빌드인지 기억해 둔다. 매니페스트 단계에서는 빌드 옵션을 알 수 없기 때문이다.</summary>
         public void OnPreprocessBuild(BuildReport report)
         {
             developmentBuildInProgress = report != null
                 && (report.summary.options & BuildOptions.Development) != 0;
         }
 
+        /// <summary>
+        /// 생성된 Gradle 프로젝트의 매니페스트에서 INTERNET 권한을 빌드 종류에 맞게 넣거나 뺀다. 중복 선언도 함께 정리한다.
+        /// </summary>
         public void OnPostGenerateGradleAndroidProject(string path)
         {
             bool includeInternet = developmentBuildInProgress
@@ -112,11 +116,13 @@ namespace PixelRoad.Editor
             }
         }
 
+        /// <summary>다음 빌드에 상태가 새지 않도록 기억해 둔 플래그를 되돌린다.</summary>
         public void OnPostprocessBuild(BuildReport report)
         {
             developmentBuildInProgress = false;
         }
 
+        /// <summary>안드로이드 플랫폼에 해당 스크립팅 심볼이 켜져 있는지 확인한다.</summary>
         private static bool HasAndroidDefine(string symbol)
         {
             string defines = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.Android);

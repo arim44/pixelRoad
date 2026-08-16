@@ -1,7 +1,16 @@
-# map_config.json 설정 값 설명
+# 지도 설정 값 설명
 
-파일 위치: `pixelRoadUnity/Assets/Resources/PixelRoad/map_config.json`
-스키마 정의: `pixelRoadUnity/Assets/Scripts/PixelRoad/Data/MapConfig.cs`
+설정은 **인스펙터에서 편집하는 ScriptableObject**가 1순위, 예전 JSON이 2순위다.
+
+| 순위 | 파일 | 비고 |
+| --- | --- | --- |
+| 1 | `pixelRoadUnity/Assets/Resources/PixelRoad/MapConfig.asset` | 필드 이름과 툴팁이 한국어. 스키마는 `Data/MapConfigAsset.cs` |
+| 2 | `pixelRoadUnity/Assets/Resources/PixelRoad/map_config.json` | 에셋이 없을 때만 읽는다. 스키마는 `Data/MapConfig.cs` |
+
+`PixelRoadApp.LoadConfig()`가 위 순서로 읽고, `MapConfigAsset.ToMapConfig()`로 런타임 `MapConfig`를 만든다.
+값을 바꿀 때는 **에셋 쪽을 고친다.** JSON만 고치면 에셋이 있는 한 반영되지 않는다.
+새 항목을 추가할 때는 `MapConfig.cs`(런타임 스키마)와 `MapConfigAsset.cs`(에디터 편집용)를 함께 고친다.
+아래 표의 키 이름은 JSON 기준이며, 에셋의 한국어 필드가 1:1로 대응한다.
 
 JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.cs`의 XML 주석에 둔다.
 파싱은 `JsonUtility.FromJson<MapConfig>`로 하며, 다음 두 가지 성질을 전제로 한다.
@@ -15,9 +24,7 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 
 | 키 | 타입 | 기본값 | 설명 |
 | --- | --- | --- | --- |
-| `appTitle` | string | `Pixel Road` | 상단 바 제목. |
 | `landmarksJsonResourcePath` | string | `PixelRoad/landmarks` | 랜드마크 JSON의 Resources 경로(확장자 제외). |
-| `projection` | string | `WebMercator` | 좌표 투영 표기. 현재 구현은 WebMercator 고정. |
 | `bounds` | object | — | 거점이 분포하는 대략적 위경도 범위. `northLat` / `southLat` / `westLon` / `eastLon`. 지도 표시가 아니라 해금 판정용 공간 인덱스의 기준 위도를 잡는 데 쓰인다. 유효하지 않으면 앱이 시작하지 않는다. |
 | `defaultUnlockRadiusMeters` | float | `50` | JSON `visitRadius`가 비었거나 0 이하일 때 쓰는 기본 방문 반경(m). |
 
@@ -66,8 +73,6 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 
 | 키 | 타입 | 기본값 | 설명 |
 | --- | --- | --- | --- |
-| `enableBackgroundUnlock` | bool | `false` | 백그라운드 해금 사용 여부. 현재 미구현 예약 값. |
-| `maxActiveGeofences` | int | `100` | 동시 감시 지오펜스 최대 개수. 현재 미구현 예약 값. |
 | `desiredAccuracyMeters` | float | `15` | GPS에 요청할 목표 정확도(m). 작을수록 정확하지만 배터리를 더 쓴다. |
 | `locationUpdateDistanceMeters` | float | `3` | 이 거리(m) 이상 움직였을 때만 위치 갱신을 받는다. |
 
@@ -79,4 +84,3 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 | `editorStartLongitude` | double | `126.977041` | 시뮬레이션 시작 경도. |
 | `editorMoveSpeedMetersPerSecond` | float | `250` | 에디터에서 방향키 이동 속도(m/s). |
 | `editorFastMoveMultiplier` | float | `4` | 가속 키를 눌렀을 때 속도 배수. |
-| `editorFollowSimulatedLocation` | bool | `true` | 시뮬레이션 위치를 지도 중심이 계속 따라갈지 여부. |

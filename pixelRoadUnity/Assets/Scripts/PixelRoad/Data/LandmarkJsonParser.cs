@@ -4,8 +4,17 @@ using UnityEngine;
 
 namespace PixelRoad.Data
 {
+    /// <summary>
+    /// landmarks.json을 <see cref="SpotDefinition"/> 목록으로 변환한다.
+    /// JsonUtility가 배열 루트를 못 읽으므로 객체로 감싸서 파싱하고,
+    /// id 중복이나 좌표 범위 같은 데이터 오류는 여기서 걸러 예외로 알린다.
+    /// </summary>
     public static class LandmarkJsonParser
     {
+        /// <summary>
+        /// JSON 문자열을 파싱해 검증까지 마친 랜드마크 목록을 돌려준다.
+        /// 반경이 비어 있는 항목은 <paramref name="fallbackVisitRadiusMeters"/>로 채운다.
+        /// </summary>
         public static List<SpotDefinition> Parse(string json, float fallbackVisitRadiusMeters)
         {
             if (string.IsNullOrWhiteSpace(json))
@@ -81,12 +90,14 @@ namespace PixelRoad.Data
             return landmarks;
         }
 
+        /// <summary>배열 루트를 JsonUtility로 읽기 위해 한 겹 씌우는 래퍼.</summary>
         [Serializable]
         private sealed class LandmarkJsonCollection
         {
             public LandmarkJsonRecord[] items;
         }
 
+        /// <summary>JSON 필드명을 그대로 받는 원시 레코드. 검증 전 단계의 값이다.</summary>
         [Serializable]
         private sealed class LandmarkJsonRecord
         {

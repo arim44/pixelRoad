@@ -28,7 +28,7 @@ public sealed class ArLocationConsumer : MonoBehaviour
             return;
         }
 
-        GeoLocationSample location = locationSource.CurrentLocation;
+        GeoLocation location = locationSource.CurrentLocation;
         if (!location.IsValid)
         {
             return;

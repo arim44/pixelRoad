@@ -29,7 +29,7 @@ namespace PixelRoad.AR
 
         public static IEnumerator LoadARScene(
             IReadOnlyList<SpotRuntimeState> nearbySpots,
-            GeoLocationSample currentLocation)
+            GeoLocation currentLocation)
         {
             List<ARLandmarkSnapshot> snapshot = BuildSnapshot(nearbySpots);
             ARHandoff.Prepare(snapshot, currentLocation);

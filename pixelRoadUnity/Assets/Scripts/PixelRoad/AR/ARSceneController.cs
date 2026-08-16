@@ -34,7 +34,7 @@ namespace PixelRoad.AR
         private AROverlayView view;
         private ILocationProvider locationProvider;
         private IHeadingProvider headingProvider;
-        private GeoLocationSample currentLocation;
+        private GeoLocation currentLocation;
         private float smoothedHeading;
         private bool hasSmoothedHeading;
         private bool ready;

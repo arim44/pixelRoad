@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace PixelRoad.Mapping
 {
+    /// <summary>
+    /// MVT 스펙이 정의하는 지오메트리 종류. 숫자 값이 곧 프로토콜 값이라 그대로 캐스팅한다.
+    /// </summary>
     public enum MvtGeometryType
     {
         Unknown = 0,
@@ -11,6 +14,9 @@ namespace PixelRoad.Mapping
         Polygon = 3
     }
 
+    /// <summary>
+    /// 타일 로컬 좌표계의 정수 좌표 한 점. Y축은 아래로 증가한다.
+    /// </summary>
     public readonly struct MvtPoint
     {
         public int X { get; }
@@ -23,6 +29,9 @@ namespace PixelRoad.Mapping
         }
     }
 
+    /// <summary>
+    /// 연속된 점 하나의 묶음. 닫힌 경로는 폴리곤 링, 열린 경로는 선을 뜻한다.
+    /// </summary>
     public sealed class MvtPath
     {
         public IReadOnlyList<MvtPoint> Points { get; }
@@ -35,6 +44,9 @@ namespace PixelRoad.Mapping
         }
     }
 
+    /// <summary>
+    /// 디코딩된 지형지물 하나. 태그 인덱스는 이미 키/값으로 풀어 Properties에 담아 둔다.
+    /// </summary>
     public sealed class MvtFeature
     {
         public bool HasId { get; }
@@ -61,6 +73,9 @@ namespace PixelRoad.Mapping
         }
     }
 
+    /// <summary>
+    /// 이름과 좌표 해상도(Extent)를 공유하는 지형지물 묶음.
+    /// </summary>
     public sealed class MvtLayer
     {
         public string Name { get; }
@@ -87,6 +102,9 @@ namespace PixelRoad.Mapping
         }
     }
 
+    /// <summary>
+    /// 타일 한 장에서 디코딩한 레이어 전체를 담는다.
+    /// </summary>
     public sealed class MvtTile
     {
         public IReadOnlyList<MvtLayer> Layers { get; }
@@ -96,6 +114,9 @@ namespace PixelRoad.Mapping
             Layers = layers;
         }
 
+        /// <summary>
+        /// 이름이 정확히 일치하는 레이어를 찾는다. 없으면 null을 돌려준다.
+        /// </summary>
         public MvtLayer FindLayer(string name)
         {
             if (name == null)
@@ -116,6 +137,10 @@ namespace PixelRoad.Mapping
         }
     }
 
+    /// <summary>
+    /// Mapbox Vector Tile(PBF) 바이트를 해석한다. 손상되거나 악의적인 타일에 대비해
+    /// 크기와 개수 상한을 촘촘히 두고 위반하면 FormatException을 던진다.
+    /// </summary>
     public static class MvtDecoder
     {
         private const int MaximumTileBytes = 16 * 1024 * 1024;
@@ -139,6 +164,9 @@ namespace PixelRoad.Mapping
         private const uint MaximumExtent = 1U << 24;
         private const uint DefaultExtent = 4096U;
 
+        /// <summary>
+        /// 타일 바이트를 디코딩한다. allowedLayers를 넘기면 해당 레이어만 파싱해 비용을 줄인다.
+        /// </summary>
         public static MvtTile Decode(byte[] data, ISet<string> allowedLayers = null)
         {
             if (data == null)
@@ -201,6 +229,9 @@ namespace PixelRoad.Mapping
             return new MvtTile(layers);
         }
 
+        /// <summary>
+        /// 레이어를 한 번 훑어 이름과 항목 개수만 먼저 파악한다. 레이어 필터링과 리스트 용량 예약에 쓴다.
+        /// </summary>
         private static LayerEnvelope ReadLayerEnvelope(PbfSlice slice)
         {
             PbfReader reader = slice.CreateReader();
@@ -271,6 +302,9 @@ namespace PixelRoad.Mapping
             return new LayerEnvelope(name, version, extent, featureCount, keyCount, valueCount);
         }
 
+        /// <summary>
+        /// 레이어를 실제로 파싱해 키/값 테이블과 지형지물을 만든다. 타일 전체 누적량도 함께 검사한다.
+        /// </summary>
         private static MvtLayer ParseLayer(
             PbfSlice slice,
             LayerEnvelope envelope,
@@ -339,6 +373,9 @@ namespace PixelRoad.Mapping
             return new MvtLayer(name, version, extent, keys, values, features);
         }
 
+        /// <summary>
+        /// 값 메시지를 해석해 C# 값으로 돌려준다. 값 필드를 두 개 이상 채운 메시지는 오류로 본다.
+        /// </summary>
         private static object ParseValue(PbfSlice slice)
         {
             PbfReader reader = slice.CreateReader();
@@ -395,6 +432,9 @@ namespace PixelRoad.Mapping
             return value;
         }
 
+        /// <summary>
+        /// 지형지물 하나를 파싱한다. 태그 인덱스를 레이어 테이블로 풀어 속성 사전을 만들고 지오메트리를 경로로 바꾼다.
+        /// </summary>
         private static MvtFeature ParseFeature(
             PbfSlice slice,
             List<string> keys,
@@ -476,6 +516,9 @@ namespace PixelRoad.Mapping
             return new MvtFeature(hasId, id, geometryType, tags, properties, paths);
         }
 
+        /// <summary>
+        /// 반복 필드를 읽는다. 패킹된 형태와 낱개 varint 형태를 모두 받아들인다.
+        /// </summary>
         private static void ReadRepeatedUInt32(
             ref PbfReader reader,
             int wireType,
@@ -506,6 +549,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 개수 상한을 확인한 뒤 값을 추가한다.
+        /// </summary>
         private static void AddRepeatedValue(List<uint> values, uint value, int maximumCount, string fieldName)
         {
             if (values.Count >= maximumCount)
@@ -516,6 +562,9 @@ namespace PixelRoad.Mapping
             values.Add(value);
         }
 
+        /// <summary>
+        /// MoveTo/LineTo/ClosePath 명령 스트림을 실제 좌표 경로 목록으로 풀어낸다.
+        /// </summary>
         private static List<MvtPath> DecodeGeometry(
             List<uint> geometry,
             MvtGeometryType geometryType,
@@ -652,6 +701,9 @@ namespace PixelRoad.Mapping
             return paths;
         }
 
+        /// <summary>
+        /// 지그재그 델타 한 쌍을 읽어 커서를 옮기고 절대 좌표 한 점을 만든다.
+        /// </summary>
         private static MvtPoint ReadGeometryPoint(
             List<uint> geometry,
             ref int index,
@@ -679,6 +731,9 @@ namespace PixelRoad.Mapping
             return new MvtPoint((int)cursorX, (int)cursorY);
         }
 
+        /// <summary>
+        /// 명령이 요구하는 좌표 쌍이 남은 데이터에 실제로 있는지 미리 확인한다.
+        /// </summary>
         private static void EnsureCoordinateParameters(List<uint> geometry, int index, int repeatCount)
         {
             int remaining = geometry.Count - index;
@@ -688,6 +743,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 쌓아 두던 선 경로를 마감해 결과 목록에 넣고 커서를 비운다.
+        /// </summary>
         private static void FinishLinePath(List<MvtPath> paths, ref List<MvtPoint> currentPath)
         {
             if (currentPath.Count < 2)
@@ -699,6 +757,9 @@ namespace PixelRoad.Mapping
             currentPath = null;
         }
 
+        /// <summary>
+        /// 경로 개수 상한을 확인한 뒤 경로를 추가한다.
+        /// </summary>
         private static void AddPath(List<MvtPath> paths, MvtPath path)
         {
             if (paths.Count >= MaximumPathsPerFeature)
@@ -709,6 +770,9 @@ namespace PixelRoad.Mapping
             paths.Add(path);
         }
 
+        /// <summary>
+        /// 레이어 헤더가 지원 범위인지 본다. 이름이 있어야 하고 버전은 2, Extent는 유효한 값이어야 한다.
+        /// </summary>
         private static void ValidateLayerHeader(
             bool hasName,
             string name,
@@ -732,6 +796,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 필드의 와이어 타입이 스펙과 다르면 오류를 던져 잘못된 해석을 막는다.
+        /// </summary>
         private static void RequireWireType(string fieldName, int actualWireType, int expectedWireType)
         {
             if (actualWireType != expectedWireType)
@@ -740,16 +807,25 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 지그재그로 인코딩된 32비트 값을 부호 있는 정수로 되돌린다.
+        /// </summary>
         private static int DecodeZigZag32(uint value)
         {
             return (int)(value >> 1) ^ -((int)value & 1);
         }
 
+        /// <summary>
+        /// 지그재그로 인코딩된 64비트 값을 부호 있는 정수로 되돌린다.
+        /// </summary>
         private static long DecodeZigZag64(ulong value)
         {
             return (long)(value >> 1) ^ -((long)value & 1L);
         }
 
+        /// <summary>
+        /// 사전 스캔으로 얻은 레이어 헤더 값과 항목 개수를 모아 둔다.
+        /// </summary>
         private readonly struct LayerEnvelope
         {
             public readonly string Name;

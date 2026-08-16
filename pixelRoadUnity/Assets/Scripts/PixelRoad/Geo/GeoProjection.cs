@@ -3,12 +3,19 @@ using UnityEngine;
 
 namespace PixelRoad.Geo
 {
+    /// <summary>
+    /// 위경도를 화면 좌표로 옮기거나 두 지점의 거리를 재는 계산 모음.
+    /// 맵 이미지가 웹 메르카토르 기준이라 같은 방식으로 투영해야 마커가 어긋나지 않는다.
+    /// </summary>
     public static class GeoProjection
     {
         private const double EarthRadiusMeters = 6371000.0;
         private const double MinMercatorLatitude = -85.05112878;
         private const double MaxMercatorLatitude = 85.05112878;
 
+        /// <summary>
+        /// 좌표를 맵 영역 안의 0~1 비율로 바꾼다. y는 위쪽이 0이라 이미지 좌표와 방향이 같다.
+        /// </summary>
         public static Vector2 LatLonToNormalizedWebMercator(double latitude, double longitude, MapBounds bounds)
         {
             double westX = LongitudeToMercatorX(bounds.westLon);
@@ -23,6 +30,7 @@ namespace PixelRoad.Geo
             return new Vector2(normalizedX, normalizedY);
         }
 
+        /// <summary>두 좌표 사이의 실제 거리(m). 방문 판정에 쓰는 하버사인 계산이다.</summary>
         public static double DistanceMeters(double latA, double lonA, double latB, double lonB)
         {
             double dLat = DegreesToRadians(latB - latA);
@@ -51,11 +59,13 @@ namespace PixelRoad.Geo
             return (bearingDegrees + 360.0) % 360.0;
         }
 
+        /// <summary>경도의 메르카토르 x. 경도는 선형이라 라디안 값을 그대로 쓴다.</summary>
         private static double LongitudeToMercatorX(double longitude)
         {
             return DegreesToRadians(longitude);
         }
 
+        /// <summary>위도의 메르카토르 y. 극지방에서 값이 발산하므로 먼저 범위를 자른다.</summary>
         private static double LatitudeToMercatorY(double latitude)
         {
             double clamped = System.Math.Max(MinMercatorLatitude, System.Math.Min(MaxMercatorLatitude, latitude));
@@ -63,6 +73,7 @@ namespace PixelRoad.Geo
             return System.Math.Log(System.Math.Tan(System.Math.PI / 4.0 + radians / 2.0));
         }
 
+        /// <summary>도 단위를 라디안으로 바꾼다.</summary>
         private static double DegreesToRadians(double degrees)
         {
             return degrees * System.Math.PI / 180.0;

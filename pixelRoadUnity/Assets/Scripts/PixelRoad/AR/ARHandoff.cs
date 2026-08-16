@@ -11,12 +11,12 @@ namespace PixelRoad.AR
     public static class ARHandoff
     {
         public static IReadOnlyList<ARLandmarkSnapshot> Landmarks { get; private set; } = Array.Empty<ARLandmarkSnapshot>();
-        public static GeoLocationSample InitialLocation { get; private set; }
+        public static GeoLocation InitialLocation { get; private set; }
         public static bool HasData { get; private set; }
         public static float InitialHeadingDegrees { get; private set; }
         public static bool HasInitialHeading { get; private set; }
 
-        public static void Prepare(IReadOnlyList<ARLandmarkSnapshot> landmarks, GeoLocationSample initialLocation)
+        public static void Prepare(IReadOnlyList<ARLandmarkSnapshot> landmarks, GeoLocation initialLocation)
         {
             Landmarks = landmarks ?? Array.Empty<ARLandmarkSnapshot>();
             InitialLocation = initialLocation;

@@ -7,12 +7,16 @@ using UnityEngine;
 
 namespace PixelRoad.Mapping
 {
+    /// <summary>
+    /// 응답 헤더에서 뽑아낸 캐시 판단 정보. 만료 시각과 재검증에 쓸 값들을 함께 들고 있다.
+    /// </summary>
     public readonly struct VectorTileCacheMetadata
     {
         public readonly long ExpiresUnixSeconds;
         public readonly string ETag;
         public readonly string LastModified;
 
+        /// <summary>만료 시각과 재검증용 헤더 값을 묶는다.</summary>
         public VectorTileCacheMetadata(long expiresUnixSeconds, string etag, string lastModified)
         {
             ExpiresUnixSeconds = expiresUnixSeconds;
@@ -41,11 +45,16 @@ namespace PixelRoad.Mapping
         public string ValidationError { get; }
         public bool IsValid => string.IsNullOrEmpty(ValidationError);
 
+        /// <summary>실행 중인 앱 식별자를 그대로 써서 제공자를 만든다.</summary>
         public VectorTileProvider(MapConfig config)
             : this(config, Application.identifier)
         {
         }
 
+        /// <summary>
+        /// 설정을 읽어 들이고 곧바로 검증한다. 잘못된 설정은 예외 대신 ValidationError로 남겨
+        /// 호출 측이 지도를 끄는 판단을 할 수 있게 한다.
+        /// </summary>
         public VectorTileProvider(MapConfig config, string applicationIdentifier)
         {
             if (config == null)
@@ -65,16 +74,22 @@ namespace PixelRoad.Mapping
                 MaximumZoom);
         }
 
+        /// <summary>타일 키로 요청 URL을 만든다. 실패 사유가 필요 없을 때 쓴다.</summary>
         public bool TryBuildTileUrl(TileKey key, out string url)
         {
             return TryBuildTileUrl(key.Zoom, key.X, key.Y, out url, out _);
         }
 
+        /// <summary>타일 키로 요청 URL을 만들고 실패하면 사유도 함께 돌려준다.</summary>
         public bool TryBuildTileUrl(TileKey key, out string url, out string error)
         {
             return TryBuildTileUrl(key.Zoom, key.X, key.Y, out url, out error);
         }
 
+        /// <summary>
+        /// 좌표를 템플릿에 채워 URL을 만든다. 범위를 벗어난 좌표나 HTTPS가 아닌 주소는
+        /// 요청을 보내기 전에 여기서 걸러진다.
+        /// </summary>
         public bool TryBuildTileUrl(int zoom, int x, int y, out string url, out string error)
         {
             url = null;
@@ -114,6 +129,10 @@ namespace PixelRoad.Mapping
             return true;
         }
 
+        /// <summary>
+        /// 앱 식별자를 헤더에 넣어도 안전한 문자만 남기도록 다듬는다.
+        /// 타일 제공자가 요구하는 사용 주체 표기를 지키기 위한 값이다.
+        /// </summary>
         public static string BuildRequestedWithHeaderValue(string applicationIdentifier)
         {
             string source = string.IsNullOrWhiteSpace(applicationIdentifier)
@@ -141,6 +160,10 @@ namespace PixelRoad.Mapping
             return string.IsNullOrEmpty(value) ? FallbackApplicationIdentifier : value;
         }
 
+        /// <summary>
+        /// 응답 헤더를 해석해 캐시 만료 시각과 재검증 값을 뽑는다.
+        /// Age 헤더가 있으면 중간 캐시에서 이미 흘러간 시간만큼 수명을 줄인다.
+        /// </summary>
         public static VectorTileCacheMetadata ParseResponseCacheHeaders(
             IDictionary<string, string> responseHeaders,
             long nowUnixSeconds)
@@ -171,6 +194,10 @@ namespace PixelRoad.Mapping
                 NormalizeOptionalHeaderValue(lastModified));
         }
 
+        /// <summary>
+        /// Cache-Control과 Expires를 순서대로 따져 만료 시각을 정한다.
+        /// 둘 다 없으면 기본 수명을 적용해 캐시가 아예 안 쓰이는 상황을 막는다.
+        /// </summary>
         public static long CalculateExpiryUnixSeconds(
             long nowUnixSeconds,
             string cacheControl,
@@ -214,6 +241,7 @@ namespace PixelRoad.Mapping
             return SaturatingAdd(nowUnixSeconds, DefaultCacheLifetimeSeconds);
         }
 
+        /// <summary>헤더 이름을 대소문자 구분 없이 찾는다. 서버마다 표기가 달라 필요한 처리다.</summary>
         public static bool TryGetHeaderValue(
             IDictionary<string, string> headers,
             string headerName,
@@ -243,6 +271,10 @@ namespace PixelRoad.Mapping
             return false;
         }
 
+        /// <summary>
+        /// 요청 대상이 자격 정보 없는 절대 HTTPS 주소인지 확인한다.
+        /// 치환되지 않은 자리표시자가 남아 있으면 실패로 본다.
+        /// </summary>
         public static bool TryValidateHttpsUrl(string url, out string error)
         {
             error = null;
@@ -275,6 +307,9 @@ namespace PixelRoad.Mapping
             return true;
         }
 
+        /// <summary>
+        /// 제공자 설정이 쓸 만한지 검사하고 문제가 있으면 사유 문자열을, 없으면 null을 돌려준다.
+        /// </summary>
         private static string ValidateConfiguration(
             string providerId,
             string urlTemplate,
@@ -312,6 +347,7 @@ namespace PixelRoad.Mapping
             return TryValidateHttpsUrl(validationUrl, out string error) ? null : error;
         }
 
+        /// <summary>템플릿에 자리표시자가 정확히 한 번만 들어 있는지 확인한다.</summary>
         private static bool ContainsExactlyOnce(string source, string value)
         {
             int firstIndex = source.IndexOf(value, StringComparison.Ordinal);
@@ -319,6 +355,9 @@ namespace PixelRoad.Mapping
                 && source.IndexOf(value, firstIndex + value.Length, StringComparison.Ordinal) < 0;
         }
 
+        /// <summary>
+        /// Cache-Control 지시자를 훑어 max-age 값과 재검증 필요 여부를 가려낸다.
+        /// </summary>
         private static bool TryParseCacheControl(
             string cacheControl,
             out long maxAgeSeconds,
@@ -370,11 +409,13 @@ namespace PixelRoad.Mapping
             return foundMaxAge;
         }
 
+        /// <summary>빈 헤더 값을 null로 통일해 이후 비교를 단순하게 만든다.</summary>
         private static string NormalizeOptionalHeaderValue(string value)
         {
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         }
 
+        /// <summary>긴 수명 값을 더할 때 오버플로로 만료 시각이 과거가 되는 것을 막는다.</summary>
         private static long SaturatingAdd(long left, long right)
         {
             return left > long.MaxValue - right ? long.MaxValue : left + right;

@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -31,8 +30,8 @@ namespace PixelRoad.Tests.PlayMode
             previousPixelPreference = PlayerPrefs.GetInt(PixelModePreferenceKey, 0);
             PlayerPrefs.SetInt(PixelModePreferenceKey, 0);
 
-            // RuntimeInitializeOnLoadMethod가 만든 실제 앱을 먼저 제거한다. 앱이 들고 있는
-            // viewport 참조를 남긴 채 아래 Canvas만 지우면 다음 프레임 Update에서 예외가 난다.
+            // 다른 테스트가 남긴 앱 인스턴스를 먼저 제거한다. 앱이 들고 있는 viewport 참조를
+            // 남긴 채 아래 Canvas만 지우면 다음 프레임 Update에서 예외가 난다.
             DestroyAllComponentsNamed(AppTypeName);
             yield return null;
 
@@ -62,16 +61,23 @@ namespace PixelRoad.Tests.PlayMode
                 BindingFlags.Public | BindingFlags.Static);
             Assert.That(create, Is.Not.Null);
 
+            // 런타임은 UI를 만들지 않는다. 씬이 하는 일(프리팹 배치)을 테스트가 대신 한다.
+            GameObject uiPrefab = Resources.Load<GameObject>("PixelRoad/UI/PixelRoadUIRoot");
+            Assert.That(uiPrefab, Is.Not.Null, "PixelRoadUIRoot.prefab was not found in Resources.");
+            canvasObject = UnityEngine.Object.Instantiate(uiPrefab);
+            canvasObject.name = "PixelRoadUIRoot";
+            Component bindings = FindComponentNamed(canvasObject, "PixelRoad.UI.PixelRoadUiBindings");
+            Assert.That(bindings, Is.Not.Null, "PixelRoadUIRoot.prefab has no PixelRoadUiBindings.");
+
             // 정적 지도 폴백이 없으므로, 라이브 지도를 끈 구성은 의도적으로 오류 로그를 남긴다.
             LogAssert.Expect(
                 LogType.Error,
                 "[PixelRoad] 라이브 벡터 지도를 사용할 수 없습니다: map_config.json 의 enableLiveVectorMap 이 false 입니다.");
-            runtimeView = create.Invoke(null, new[] { config });
+            runtimeView = create.Invoke(null, new[] { config, bindings });
             Assert.That(runtimeView, Is.Not.Null);
 
-            Canvas canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
-            Assert.That(canvas, Is.Not.Null);
-            canvasObject = canvas.gameObject;
+            Assert.That(canvasObject.GetComponent<Canvas>(), Is.Not.Null,
+                "The prefab instance must be the only canvas the runtime uses.");
 
             Component eventSystem = FindFirstComponentNamed("UnityEngine.EventSystems.EventSystem");
             Assert.That(eventSystem, Is.Not.Null);
@@ -84,9 +90,8 @@ namespace PixelRoad.Tests.PlayMode
         [UnityTearDown]
         public IEnumerator TearDown()
         {
-            DestroyRuntimeSprites(canvasObject);
-            DestroyPrivateUnityObject("pixelFont");
-
+            // 마커·유저 스프라이트는 모두 프리팹과 Resources 에셋이라 여기서 해제하지 않는다.
+            // 런타임이 만들던 도형 텍스처가 없어졌기 때문이다.
             if (canvasObject != null)
             {
                 UnityEngine.Object.Destroy(canvasObject);
@@ -118,10 +123,15 @@ namespace PixelRoad.Tests.PlayMode
             Assert.That(
                 FindComponentNamed(canvasObject, "UnityEngine.UI.GraphicRaycaster"),
                 Is.Not.Null,
-                "The runtime canvas must have a GraphicRaycaster so its controls can receive clicks.");
+                "The prefab canvas must have a GraphicRaycaster so its controls can receive clicks.");
+            Assert.That(
+                FindComponentNamed(canvasObject, "PixelRoad.UI.PixelRoadUiBindings"),
+                Is.Not.Null,
+                "The canvas must come from PixelRoadUIRoot.prefab, not from a runtime-built GameObject.");
 
             Component eventSystem = FindFirstComponentNamed("UnityEngine.EventSystems.EventSystem");
-            Assert.That(eventSystem, Is.Not.Null, "The runtime UI must create an EventSystem.");
+            Assert.That(eventSystem, Is.Not.Null,
+                "PixelRoadUIRoot.prefab must ship its own EventSystem; the runtime no longer creates one.");
             Component inputModule = FindComponentNamed(
                 eventSystem.gameObject,
                 "UnityEngine.InputSystem.UI.InputSystemUIInputModule");
@@ -143,37 +153,32 @@ namespace PixelRoad.Tests.PlayMode
                 "The map notice must explain why no map is drawn once the static fallback is gone.");
             Assert.That(ReadChildText(mapNotice.gameObject), Does.Contain("지도를 표시할 수 없습니다"));
 
-            bool codexRequested = false;
-            Action codexHandler = () =>
-            {
-                codexRequested = true;
-                bool currentlyVisible = (bool)InvokeView("IsCodexVisible");
-                InvokeView("SetCodexVisible", !currentlyVisible);
-            };
-            EventInfo codexEvent = runtimeViewType.GetEvent("CodexRequested");
-            Assert.That(codexEvent, Is.Not.Null);
-            codexEvent.AddEventHandler(runtimeView, codexHandler);
+            // 와이어프레임의 하단 GNB. 지도/도감은 바로 쓸 수 있고, 리포트와 AR은 조건을 만족하기 전까지 비활성이다.
+            Assert.That(ReadInteractable("MapTab"), Is.True, "The map tab must always be usable.");
+            Assert.That(ReadInteractable("CodexTab"), Is.True, "The codex tab must always be usable.");
+            Assert.That(ReadInteractable("ReportTab"), Is.False,
+                "The AI report tab must start disabled until at least one landmark is unlocked.");
+            Assert.That(ReadInteractable("ArTab"), Is.False,
+                "The AR tab must start disabled until the user is inside an AR radius.");
+
+            Transform badge = FindRequiredTransform("Badge");
+            Assert.That(badge.gameObject.activeSelf, Is.False,
+                "The report badge must be hidden until a new unlock is pending.");
+
+            // 랜드마크 배너는 선택된 랜드마크가 있을 때만 보인다.
+            Transform banner = FindRequiredTransform("LandmarkBanner");
+            Assert.That(banner.gameObject.activeSelf, Is.False,
+                "The landmark banner must stay hidden while nothing is selected.");
 
             Assert.That((bool)InvokeView("IsCodexVisible"), Is.False);
-            InvokeButton("CodexButton");
+            InvokeView("SetCodexVisible", true);
             yield return null;
-            Assert.That(codexRequested, Is.True, "The Codex button did not raise its request event.");
             Assert.That((bool)InvokeView("IsCodexVisible"), Is.True,
-                "The Codex panel did not become visible after clicking the Codex button.");
+                "The Codex panel did not become visible.");
 
-            Component pixelToggle = FindRequiredComponent("PixelToggle", "UnityEngine.UI.Button");
-            Assert.That(ReadChildText(pixelToggle.gameObject), Is.EqualTo("픽셀 OFF"));
-            Assert.That(ReadPrivateBool("pixelFilterEnabled"), Is.False);
-
-            InvokeButton("PixelToggle");
+            InvokeView("SetCodexVisible", false);
             yield return null;
-            Assert.That(ReadChildText(pixelToggle.gameObject), Is.EqualTo("픽셀 ON"));
-            Assert.That(ReadPrivateBool("pixelFilterEnabled"), Is.True);
-
-            InvokeButton("PixelToggle");
-            yield return null;
-            Assert.That(ReadChildText(pixelToggle.gameObject), Is.EqualTo("픽셀 OFF"));
-            Assert.That(ReadPrivateBool("pixelFilterEnabled"), Is.False);
+            Assert.That((bool)InvokeView("IsCodexVisible"), Is.False);
 
             object spotState = CreateSpotState();
             MethodInfo addSpotMarker = runtimeViewType.GetMethod("AddSpotMarker");
@@ -196,10 +201,14 @@ namespace PixelRoad.Tests.PlayMode
             InvokeView("SetCodexVisible", true);
             Assert.That((bool)InvokeView("IsCodexVisible"), Is.True);
 
+            // 카드 상세 보기가 도감 위에 겹쳐 뜨므로 카드를 눌러도 도감은 열린 채로 있어야 한다.
             InvokeButton("Codex_runtime_ui_spot");
             yield return null;
-            Assert.That((bool)InvokeView("IsCodexVisible"), Is.False,
-                "Selecting a Codex card must close the Codex panel.");
+            Assert.That((bool)InvokeView("IsCodexVisible"), Is.True,
+                "The Codex must stay open behind the card detail overlay.");
+            Transform detail = FindRequiredTransform("CardDetail");
+            Assert.That(detail.gameObject.activeSelf, Is.True,
+                "Selecting an unlocked Codex card must open the card detail overlay.");
         }
 
         private object CreateSpotState()
@@ -230,29 +239,14 @@ namespace PixelRoad.Tests.PlayMode
             return method.Invoke(runtimeView, arguments);
         }
 
-        private bool ReadPrivateBool(string fieldName)
+        private static bool ReadInteractable(string objectName)
         {
-            FieldInfo field = runtimeViewType.GetField(
-                fieldName,
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(field, Is.Not.Null, "Missing runtime-view field: " + fieldName);
-            return (bool)field.GetValue(runtimeView);
-        }
-
-        private void DestroyPrivateUnityObject(string fieldName)
-        {
-            if (runtimeView == null || runtimeViewType == null)
-            {
-                return;
-            }
-
-            FieldInfo field = runtimeViewType.GetField(
-                fieldName,
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field?.GetValue(runtimeView) is UnityEngine.Object value && value != null)
-            {
-                UnityEngine.Object.Destroy(value);
-            }
+            Component button = FindRequiredComponent(objectName, "UnityEngine.UI.Button");
+            PropertyInfo property = button.GetType().GetProperty(
+                "interactable",
+                BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(property, Is.Not.Null);
+            return (bool)property.GetValue(button);
         }
 
         private static void SetPublicField(object target, string fieldName, object value)
@@ -389,44 +383,5 @@ namespace PixelRoad.Tests.PlayMode
             }
         }
 
-        private static void DestroyRuntimeSprites(GameObject root)
-        {
-            if (root == null)
-            {
-                return;
-            }
-
-            HashSet<Sprite> sprites = new HashSet<Sprite>();
-            HashSet<Texture2D> textures = new HashSet<Texture2D>();
-            Component[] components = root.GetComponentsInChildren<Component>(true);
-            for (int index = 0; index < components.Length; index++)
-            {
-                Component component = components[index];
-                if (component == null || component.GetType().FullName != "UnityEngine.UI.Image")
-                {
-                    continue;
-                }
-
-                PropertyInfo spriteProperty = component.GetType().GetProperty("sprite");
-                if (spriteProperty?.GetValue(component) is Sprite sprite && sprite != null)
-                {
-                    sprites.Add(sprite);
-                    if (sprite.texture != null)
-                    {
-                        textures.Add(sprite.texture);
-                    }
-                }
-            }
-
-            foreach (Sprite sprite in sprites)
-            {
-                UnityEngine.Object.Destroy(sprite);
-            }
-
-            foreach (Texture2D texture in textures)
-            {
-                UnityEngine.Object.Destroy(texture);
-            }
-        }
     }
 }
