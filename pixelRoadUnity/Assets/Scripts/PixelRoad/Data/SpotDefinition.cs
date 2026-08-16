@@ -3,6 +3,10 @@ using System.Globalization;
 
 namespace PixelRoad.Data
 {
+    /// <summary>
+    /// 랜드마크 한 곳의 불변 정보. 위치와 표시용 텍스트를 한데 묶어
+    /// 런타임 상태(<see cref="SpotRuntimeState"/>)와 분리해 둔다.
+    /// </summary>
     public sealed class SpotDefinition
     {
         public int LandmarkId { get; private set; }
@@ -21,6 +25,10 @@ namespace PixelRoad.Data
         public string View360Image { get; private set; }
         public bool InitiallyUnlocked { get; private set; }
 
+        /// <summary>
+        /// landmarks.json 레코드로부터 만든다. 빈 문자열 처리를 여기서 끝내
+        /// 이후 UI 코드가 null을 신경 쓰지 않게 한다.
+        /// </summary>
         public SpotDefinition(
             int landmarkId,
             string displayName,
@@ -55,6 +63,7 @@ namespace PixelRoad.Data
 
         // 기존 테스트/도구 코드가 사용하던 생성자를 유지한다. 실제 앱 데이터는
         // landmarks.json의 숫자 id를 받는 위 생성자를 사용한다.
+        /// <summary>문자열 id로 만드는 호환용 생성자. 해금 여부를 직접 지정할 수 있다.</summary>
         public SpotDefinition(
             string id,
             string displayName,

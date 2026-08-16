@@ -17,14 +17,8 @@ namespace PixelRoad.Data
         // 앱 기본
         // ---------------------------------------------------------------
 
-        /// <summary>상단 바에 표시되는 앱 제목.</summary>
-        public string appTitle = "Pixel Road";
-
         /// <summary>랜드마크 목록 JSON의 Resources 경로(확장자 제외).</summary>
         public string landmarksJsonResourcePath = "PixelRoad/landmarks";
-
-        /// <summary>좌표 투영 방식 표기. 현재 구현은 WebMercator 고정.</summary>
-        public string projection = "WebMercator";
 
         /// <summary>
         /// 거점 데이터가 분포하는 대략적인 위경도 범위.
@@ -144,12 +138,6 @@ namespace PixelRoad.Data
         // 위치 · 해금
         // ---------------------------------------------------------------
 
-        /// <summary>백그라운드 해금 사용 여부(미구현 예약 값).</summary>
-        public bool enableBackgroundUnlock = false;
-
-        /// <summary>동시에 감시할 지오펜스 최대 개수(미구현 예약 값).</summary>
-        public int maxActiveGeofences = 100;
-
         /// <summary>GPS에 요청할 목표 정확도(m). 작을수록 정확하지만 배터리를 더 쓴다.</summary>
         public float desiredAccuracyMeters = 15f;
 
@@ -171,8 +159,5 @@ namespace PixelRoad.Data
 
         /// <summary>에디터에서 가속 키를 눌렀을 때 이동 속도 배수.</summary>
         public float editorFastMoveMultiplier = 4f;
-
-        /// <summary>에디터에서 시뮬레이션 위치를 지도 중심이 계속 따라갈지 여부.</summary>
-        public bool editorFollowSimulatedLocation = true;
     }
 }

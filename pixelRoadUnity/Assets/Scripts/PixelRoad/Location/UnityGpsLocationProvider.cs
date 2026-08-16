@@ -8,13 +8,16 @@ using UnityEngine.Android;
 
 namespace PixelRoad.Location
 {
+    /// <summary>
+    /// 실기기용 위치 공급자. 안드로이드 위치 권한과 Unity 위치 서비스를 다루고, 진행 상태를 문구로 남긴다.
+    /// </summary>
     public sealed class UnityGpsLocationProvider : ILocationProvider
     {
         private readonly MapConfig config;
-        private GeoLocationSample current;
+        private GeoLocation current;
         private string statusText = "GPS starting";
 
-        public GeoLocationSample Current
+        public GeoLocation Current
         {
             get { return current; }
         }
@@ -24,11 +27,15 @@ namespace PixelRoad.Location
             get { return statusText; }
         }
 
+        /// <summary>정확도·갱신 거리 등 위치 서비스 설정을 담은 지도 설정을 받아 둔다.</summary>
         public UnityGpsLocationProvider(MapConfig config)
         {
             this.config = config;
         }
 
+        /// <summary>
+        /// 위치 권한을 확인·요청하고 위치 서비스를 켠다. 실패하면 상태 문구만 남기고 조용히 끝낸다.
+        /// </summary>
         public IEnumerator Start()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -88,6 +95,7 @@ namespace PixelRoad.Location
             UpdateCurrent();
         }
 
+        /// <summary>위치 서비스가 돌고 있을 때만 최신 좌표를 읽어 온다.</summary>
         public void Tick(float deltaTime)
         {
             if (Input.location.status == LocationServiceStatus.Running)
@@ -96,6 +104,7 @@ namespace PixelRoad.Location
             }
         }
 
+        /// <summary>위치 서비스를 꺼서 배터리 소모를 줄인다.</summary>
         public void Stop()
         {
             if (Input.location.status == LocationServiceStatus.Running)
@@ -104,10 +113,11 @@ namespace PixelRoad.Location
             }
         }
 
+        /// <summary>Unity가 마지막으로 받은 측위 결과를 내부 좌표로 옮긴다.</summary>
         private void UpdateCurrent()
         {
             LocationInfo data = Input.location.lastData;
-            current = new GeoLocationSample(data.latitude, data.longitude, data.horizontalAccuracy, true);
+            current = new GeoLocation(data.latitude, data.longitude, data.horizontalAccuracy, true);
         }
     }
 }

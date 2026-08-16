@@ -4,6 +4,9 @@ using UnityEngine;
 
 namespace PixelRoad.Mapping
 {
+    /// <summary>
+    /// 메인 스레드에서 Mesh로 올리기만 하면 되는 순수 배열 형태의 메시 결과물.
+    /// </summary>
     public sealed class VectorTileMeshData
     {
         public readonly Vector3[] Vertices;
@@ -49,6 +52,9 @@ namespace PixelRoad.Mapping
         private static readonly Color32 Rail = new Color32(49, 45, 48, 255);
         private static readonly Color32 Boundary = new Color32(85, 78, 68, 255);
 
+        /// <summary>
+        /// 실제로 그리는 레이어 이름 집합을 만든다. 디코딩 단계에 넘겨 불필요한 파싱을 건너뛴다.
+        /// </summary>
         public static ISet<string> CreateSupportedLayerFilter()
         {
             return new HashSet<string>(StringComparer.Ordinal)
@@ -64,6 +70,9 @@ namespace PixelRoad.Mapping
             };
         }
 
+        /// <summary>
+        /// 타일의 레이어를 정해진 순서와 z값으로 쌓아 하나의 메시로 만든다. 순서가 곧 그리기 순서다.
+        /// </summary>
         public static VectorTileMeshData Build(MvtTile tile)
         {
             if (tile == null)
@@ -83,6 +92,9 @@ namespace PixelRoad.Mapping
             return mesh.ToData();
         }
 
+        /// <summary>
+        /// 면 레이어를 채워 넣는다. 링 방향으로 외곽선을 가려내고 구멍 링은 덧칠하지 않도록 건너뛴다.
+        /// </summary>
         private static void AddPolygonLayer(
             MvtLayer layer,
             MeshAccumulator mesh,
@@ -141,6 +153,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 도로 레이어를 그린다. 굵은 그림자선을 먼저 깔고 그 위에 본선을 얹어 테두리를 만든다.
+        /// </summary>
         private static void AddStreetLayer(MvtLayer layer, MeshAccumulator mesh)
         {
             if (layer == null || layer.Extent == 0U)
@@ -178,6 +193,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 도로가 아닌 일반 선 레이어를 그린다. 경계선이나 하천처럼 스타일이 단순한 경우에 쓴다.
+        /// </summary>
         private static void AddLineLayer(
             MvtLayer layer,
             MeshAccumulator mesh,
@@ -222,6 +240,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 링 하나를 0~1 타일 좌표로 옮기고 중복·일직선 점을 정리한 뒤 삼각분할해 메시에 넣는다.
+        /// </summary>
         private static void AddPolygon(
             IReadOnlyList<MvtPoint> source,
             float inverseExtent,
@@ -272,6 +293,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 선을 구간마다 사각형 띠로 확장해 두께를 만든다. 꺾이는 지점에는 이음새를 덧댄다.
+        /// </summary>
         private static void AddStroke(
             IReadOnlyList<MvtPoint> source,
             float inverseExtent,
@@ -308,11 +332,17 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 타일 UV를 Y축이 뒤집힌 월드 좌표로 바꿔 정점 하나를 넣는다.
+        /// </summary>
         private static void AddStrokeVertex(MeshAccumulator mesh, Vector2 tileUv, Color32 color, float z)
         {
             mesh.AddVertex(new Vector3(tileUv.x, -tileUv.y, z), color, tileUv);
         }
 
+        /// <summary>
+        /// 꺾인 지점에 마름모 조각을 덧대 선 구간 사이의 빈틈을 메운다.
+        /// </summary>
         private static void AddSquareJoint(MeshAccumulator mesh, Vector2 center, float radius, Color32 color, float z)
         {
             int start = mesh.VertexCount;
@@ -324,6 +354,9 @@ namespace PixelRoad.Mapping
             mesh.AddTriangle(start, start + 2, start + 3);
         }
 
+        /// <summary>
+        /// 단순 다각형을 귀 자르기(ear clipping)로 삼각분할한다. 진행이 막히면 빈 결과로 포기한다.
+        /// </summary>
         private static List<int> Triangulate(List<Vector2> points)
         {
             int count = points.Count;
@@ -406,6 +439,9 @@ namespace PixelRoad.Mapping
             return result;
         }
 
+        /// <summary>
+        /// 점이 삼각형 안에 있는지 본다. 귀 자르기에서 잘라도 되는 귀인지 판정할 때 쓴다.
+        /// </summary>
         private static bool PointInTriangle(Vector2 point, Vector2 a, Vector2 b, Vector2 c)
         {
             float ab = Cross(b - a, point - a);
@@ -414,6 +450,9 @@ namespace PixelRoad.Mapping
             return ab >= -0.00000001f && bc >= -0.00000001f && ca >= -0.00000001f;
         }
 
+        /// <summary>
+        /// 일직선 위의 불필요한 점을 걷어낸다. 정점 수를 줄이고 삼각분할 실패도 줄인다.
+        /// </summary>
         private static void RemoveCollinearPoints(List<Vector2> points)
         {
             bool removed;
@@ -435,6 +474,9 @@ namespace PixelRoad.Mapping
             while (removed && points.Count >= 3);
         }
 
+        /// <summary>
+        /// 타일 원좌표 링의 부호 있는 면적. 부호로 외곽 링과 구멍 링을 구분한다.
+        /// </summary>
         private static double SignedArea(IReadOnlyList<MvtPoint> points)
         {
             double area = 0.0;
@@ -448,6 +490,9 @@ namespace PixelRoad.Mapping
             return area * 0.5;
         }
 
+        /// <summary>
+        /// 정규화된 좌표 링의 부호 있는 면적. 삼각분할 전 감는 방향을 맞추는 데 쓴다.
+        /// </summary>
         private static float SignedArea(IReadOnlyList<Vector2> points)
         {
             float area = 0f;
@@ -461,11 +506,17 @@ namespace PixelRoad.Mapping
             return area * 0.5f;
         }
 
+        /// <summary>
+        /// 2차원 외적. 부호로 두 벡터의 회전 방향을 알 수 있다.
+        /// </summary>
         private static float Cross(Vector2 left, Vector2 right)
         {
             return left.x * right.y - left.y * right.x;
         }
 
+        /// <summary>
+        /// 토지 용도(kind)에 맞는 바탕색을 고른다. 모르는 값은 기본 배경색으로 둔다.
+        /// </summary>
         private static Color32 LandColor(MvtFeature feature)
         {
             string kind = GetKind(feature);
@@ -493,6 +544,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 학교, 병원 같은 시설 부지의 색을 고른다.
+        /// </summary>
         private static Color32 SiteColor(MvtFeature feature)
         {
             string kind = GetKind(feature);
@@ -512,6 +566,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 도로 등급에 따라 색과 굵기를 정한다. 등급이 높을수록 굵고 밝게 그린다.
+        /// </summary>
         private static LineStyle StreetStyle(MvtFeature feature)
         {
             string kind = GetKind(feature);
@@ -542,6 +599,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// Shortbread 스키마의 kind 속성을 꺼낸다. 없으면 빈 문자열을 준다.
+        /// </summary>
         private static string GetKind(MvtFeature feature)
         {
             if (feature.Properties.TryGetValue("kind", out object value) && value != null)
@@ -552,6 +612,9 @@ namespace PixelRoad.Mapping
             return string.Empty;
         }
 
+        /// <summary>
+        /// 선을 그릴 때 쓰는 색과 굵기 한 쌍. 굵기 단위는 256픽셀 타일 기준 픽셀이다.
+        /// </summary>
         private readonly struct LineStyle
         {
             public readonly Color32 Color;
@@ -564,6 +627,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 정점과 삼각형을 모으는 버퍼. 정점 수 상한을 넘지 않도록 관리해 폭주를 막는다.
+        /// </summary>
         private sealed class MeshAccumulator
         {
             private readonly int maximumVertices;
@@ -587,11 +653,17 @@ namespace PixelRoad.Mapping
                 this.maximumVertices = maximumVertices;
             }
 
+            /// <summary>
+            /// 정점을 그만큼 더 넣어도 상한을 넘지 않는지 미리 확인한다.
+            /// </summary>
             public bool CanAdd(int count)
             {
                 return count >= 0 && vertices.Count <= maximumVertices - count;
             }
 
+            /// <summary>
+            /// 위치, 색, 타일 UV를 한 세트로 추가한다. 세 목록의 인덱스는 항상 짝을 이룬다.
+            /// </summary>
             public void AddVertex(Vector3 vertex, Color32 color, Vector2 tileUv)
             {
                 vertices.Add(vertex);
@@ -599,6 +671,9 @@ namespace PixelRoad.Mapping
                 tileUvs.Add(tileUv);
             }
 
+            /// <summary>
+            /// 정점 인덱스 세 개로 삼각형 하나를 추가한다.
+            /// </summary>
             public void AddTriangle(int first, int second, int third)
             {
                 triangles.Add(first);
@@ -606,6 +681,9 @@ namespace PixelRoad.Mapping
                 triangles.Add(third);
             }
 
+            /// <summary>
+            /// 모아 둔 내용을 배열로 굳혀 결과 객체로 넘긴다.
+            /// </summary>
             public VectorTileMeshData ToData()
             {
                 return new VectorTileMeshData(

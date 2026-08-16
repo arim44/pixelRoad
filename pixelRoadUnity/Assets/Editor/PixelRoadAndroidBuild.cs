@@ -6,10 +6,14 @@ using UnityEngine;
 
 namespace PixelRoad.Editor
 {
+    /// <summary>
+    /// 안드로이드 APK 빌드 진입점 모음. 메뉴와 CI 배치 모드에서 같은 설정으로 빌드하도록 경로와 옵션을 한곳에 모았다.
+    /// </summary>
     public static class PixelRoadAndroidBuild
     {
         private const string BuildPathArgument = "-pixelRoadBuildPath";
 
+        /// <summary>메뉴에서 개발용 APK를 기본 경로에 빌드한다.</summary>
         [MenuItem("Pixel Road/Build Android Development APK")]
         public static void BuildAndroidDevelopmentApk()
         {
@@ -22,6 +26,7 @@ namespace PixelRoad.Editor
             BuildApk(defaultPath, BuildOptions.Development, "development");
         }
 
+        /// <summary>메뉴에서 오프라인 심사용 APK를 기본 경로에 빌드한다.</summary>
         [MenuItem("Pixel Road/Build Android Offline Review APK")]
         public static void BuildAndroidOfflineReviewApk()
         {
@@ -74,6 +79,7 @@ namespace PixelRoad.Editor
             BuildApk(outputPath, BuildOptions.None, "offline review");
         }
 
+        /// <summary>출력 경로를 검증하고 폴더를 만든 뒤 실제 빌드를 돌린다. 실패하면 예외를 던져 CI가 알아채게 한다.</summary>
         private static void BuildApk(string outputPath, BuildOptions buildOptions, string buildLabel)
         {
             if (!outputPath.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
@@ -106,6 +112,7 @@ namespace PixelRoad.Editor
                 + " (" + report.summary.totalSize + " bytes)");
         }
 
+        /// <summary>커맨드라인에서 지정한 인자 값을 찾는다. 없으면 null을 돌려준다.</summary>
         private static string ReadArgument(string argumentName)
         {
             string[] arguments = Environment.GetCommandLineArgs();

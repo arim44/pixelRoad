@@ -48,6 +48,7 @@ namespace PixelRoad.UI
             mapInput = input;
         }
 
+        /// <summary>화면 DPI에 맞춰 탭 허용 반경을 픽셀로 환산해 둔다. 매번 계산하지 않도록 제곱값으로 보관한다.</summary>
         private void Awake()
         {
             float slop = Mathf.Clamp(
@@ -57,6 +58,7 @@ namespace PixelRoad.UI
             tapSlopSquared = slop * slop;
         }
 
+        /// <summary>누른 지점을 기록해 탭 판정의 기준으로 삼는다.</summary>
         public void OnPointerDown(PointerEventData eventData)
         {
             pressed = true;
@@ -64,6 +66,7 @@ namespace PixelRoad.UI
             pressPosition = eventData.position;
         }
 
+        /// <summary>손을 뗀 지점이 허용 반경 안이면 탭으로 확정한다. 그 밖은 지도 팬으로 보고 무시한다.</summary>
         public void OnPointerUp(PointerEventData eventData)
         {
             if (!pressed)
@@ -80,10 +83,12 @@ namespace PixelRoad.UI
             Tapped?.Invoke();
         }
 
+        /// <summary>비어 있지만, 이 핸들러가 있어야 마커가 드래그 대상이 되어 pointerPress를 뺏기지 않는다.</summary>
         public void OnBeginDrag(PointerEventData eventData)
         {
         }
 
+        /// <summary>허용 반경을 넘으면 탭을 취소하고, 이동량은 지도로 넘겨 팬이 끊기지 않게 한다.</summary>
         public void OnDrag(PointerEventData eventData)
         {
             if (pressed && MovedBeyondTapSlop(eventData.position))
@@ -97,10 +102,12 @@ namespace PixelRoad.UI
             }
         }
 
+        /// <summary>드래그 인터페이스를 갖추기 위한 빈 구현. 정리할 상태가 없다.</summary>
         public void OnEndDrag(PointerEventData eventData)
         {
         }
 
+        /// <summary>마커 위에서 굴린 휠도 지도 줌으로 넘겨 마커가 줌을 막지 않게 한다.</summary>
         public void OnScroll(PointerEventData eventData)
         {
             if (mapInput != null)
@@ -109,6 +116,7 @@ namespace PixelRoad.UI
             }
         }
 
+        /// <summary>누른 지점에서 탭 허용 반경을 벗어났는지 판단한다.</summary>
         private bool MovedBeyondTapSlop(Vector2 position)
         {
             return (position - pressPosition).sqrMagnitude > tapSlopSquared;

@@ -6,14 +6,29 @@ using PixelRoad.Location;
 using PixelRoad.UI;
 using UnityEngine;
 
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
 namespace PixelRoad.Runtime
 {
+    /// <summary>
+    /// 지도 씬의 진입점. 설정과 랜드마크 데이터를 읽어 뷰를 세우고, 위치 갱신과 방문 판정을 매 프레임 이어 준다.
+    /// </summary>
     public sealed class PixelRoadApp : MonoBehaviour
     {
+        /// <summary>인스펙터에서 편집하는 설정 에셋. 있으면 JSON보다 우선한다.</summary>
+        private const string ConfigAssetResourcePath = "PixelRoad/MapConfig";
+
+        /// <summary>설정 에셋이 없을 때 쓰는 예전 JSON 경로.</summary>
         private const string ConfigResourcePath = "PixelRoad/map_config";
 
+        /// <summary>
+        /// 지도 씬에 배치된 UI 프리팹 인스턴스의 참조.
+        /// 런타임에 프리팹을 찾거나 Instantiate 하지 않고, 씬에서 주입받는다.
+        /// </summary>
         [SerializeField]
-        private bool centerOnFirstLocation = true;
+        private PixelRoadUiBindings uiBindings;
 
         private MapConfig config;
         private PixelRoadRuntimeView view;
@@ -21,14 +36,16 @@ namespace PixelRoad.Runtime
         private VisitRepository visitRepository;
         private SpotSpatialIndex spatialIndex;
         private readonly List<SpotRuntimeState> spots = new List<SpotRuntimeState>();
-        private GeoLocationSample currentLocation;
+        private GeoLocation currentLocation;
         private float unlockQueryRadiusMeters;
-        private bool centeredOnce;
+
+        /// <summary>종료 확인 창에서 승인했는지. 안드로이드의 종료 가로채기를 통과시키는 조건이다.</summary>
+        private bool quitConfirmed;
 
         /// <summary>
         /// AR 등 다른 기능에서 공유해 쓰는 현재 위치. Input.location을 중복 시작하지 않는다.
         /// </summary>
-        public GeoLocationSample CurrentLocation
+        public GeoLocation CurrentLocation
         {
             get { return currentLocation; }
         }
@@ -38,36 +55,46 @@ namespace PixelRoad.Runtime
             get { return spots; }
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void Bootstrap()
-        {
-            if (FindFirstObjectByType<PixelRoadApp>() != null)
-            {
-                return;
-            }
-
-            GameObject appObject = new GameObject("PixelRoadApp");
-            appObject.AddComponent<PixelRoadApp>();
-        }
-
+        /// <summary>
+        /// 데이터 로드 → 뷰 구성 → 위치 공급자 시작 순으로 앱을 띄운다. 도중에 실패해도 로딩 화면은 반드시 닫아 준다.
+        /// </summary>
         private IEnumerator Start()
         {
             Application.targetFrameRate = 60;
 
-            if (!LoadData())
+            if (uiBindings == null)
             {
+                // 씬에 PixelRoadUIRoot 프리팹 인스턴스를 두고 이 필드에 연결해야 한다.
+                // 런타임 생성 경로를 없앴기 때문에 여기서 대신 만들어 주지 않는다.
+                Debug.LogError(
+                    "[PixelRoad] PixelRoadApp.uiBindings 가 비어 있습니다. "
+                    + "MapScene 에 PixelRoadUIRoot 프리팹을 배치하고 참조를 연결하세요. "
+                    + "(Tools > Pixel Road > Setup Map Scene)");
+                AppReadySignal.RaiseMapReady();
                 yield break;
             }
 
-            view = PixelRoadRuntimeView.Create(config);
-            view.CodexRequested += ToggleCodex;
+            if (!LoadData())
+            {
+                // 데이터를 못 읽으면 지도를 띄울 수 없다. 로딩 화면이 영원히 남지 않도록 신호는 보낸다.
+                AppReadySignal.RaiseMapReady();
+                yield break;
+            }
+
+            view = PixelRoadRuntimeView.Create(config, uiBindings);
+            view.GnbTabSelected += HandleGnbTabSelected;
+            view.QuitConfirmed += QuitApp;
             for (int i = 0; i < spots.Count; i++)
             {
                 view.AddSpotMarker(spots[i], SelectSpot);
             }
 
+            view.BuildCodexFilters(spots);
             RefreshProgress();
+
+            // 첫 위치를 받기 전까지는 설정 좌표를 보여 준다. 위치가 잡히면 추적이 중심을 옮긴다.
             view.CenterOnLocation(config.editorStartLatitude, config.editorStartLongitude);
+            SignalReadyWhenMapIsUsable();
 
 #if UNITY_EDITOR
             locationProvider = new SimulatedLocationProvider(
@@ -79,11 +106,13 @@ namespace PixelRoad.Runtime
             locationProvider = new UnityGpsLocationProvider(config);
 #endif
             yield return StartCoroutine(locationProvider.Start());
-            view.SetLocationStatus(locationProvider.StatusText);
         }
 
+        /// <summary>뒤로가기 입력을 살피고, 위치를 갱신한 뒤 방문 판정을 돌린다.</summary>
         private void Update()
         {
+            HandleBackKey();
+
             if (locationProvider == null || view == null)
             {
                 return;
@@ -91,30 +120,18 @@ namespace PixelRoad.Runtime
 
             locationProvider.Tick(Time.deltaTime);
             currentLocation = locationProvider.Current;
-            view.SetLocationStatus(BuildLocationStatus());
 
             if (!currentLocation.IsValid)
             {
                 return;
             }
 
+            // 지도 중심 추적은 뷰가 맡는다. 드래그로 풀리고 우하단 버튼으로 다시 켜진다.
             view.UpdateUserLocation(currentLocation);
-            if (centerOnFirstLocation && !centeredOnce)
-            {
-                view.CenterOnLocation(currentLocation.Latitude, currentLocation.Longitude);
-                centeredOnce = true;
-            }
-
-#if UNITY_EDITOR
-            if (config.editorFollowSimulatedLocation)
-            {
-                view.CenterOnLocation(currentLocation.Latitude, currentLocation.Longitude);
-            }
-#endif
-
             CheckVisits();
         }
 
+        /// <summary>씬을 떠날 때 위치 서비스를 확실히 멈춘다.</summary>
         private void OnDestroy()
         {
             if (locationProvider != null)
@@ -123,19 +140,130 @@ namespace PixelRoad.Runtime
             }
         }
 
-        private bool LoadData()
+#if !UNITY_EDITOR
+        // 안드로이드는 뒤로가기를 누르면 플레이어가 곧바로 종료하려 든다. 확인 창을 먼저 띄우려고 가로챈다.
+        // 에디터에서는 Play 종료까지 막아 버리므로 걸지 않는다.
+        /// <summary>종료 가로채기를 건다.</summary>
+        private void OnEnable()
         {
-            TextAsset configAsset = Resources.Load<TextAsset>(ConfigResourcePath);
-            if (configAsset == null)
+            Application.wantsToQuit += HandleWantsToQuit;
+        }
+
+        /// <summary>종료 가로채기를 푼다.</summary>
+        private void OnDisable()
+        {
+            Application.wantsToQuit -= HandleWantsToQuit;
+        }
+
+        /// <summary>확인 창을 아직 통과하지 않았으면 종료를 막고 확인 창을 띄운다.</summary>
+        private bool HandleWantsToQuit()
+        {
+            if (quitConfirmed || view == null)
             {
-                Debug.LogError("[PixelRoad] Missing Resources/" + ConfigResourcePath + ".json");
+                return true;
+            }
+
+            view.ShowQuitDialog();
+            return false;
+        }
+#endif
+
+        /// <summary>
+        /// 뒤로가기(안드로이드 Back = Escape) 처리.
+        /// 종료 확인 창이 떠 있으면 닫고, 아니면 확인 창을 띄운다.
+        /// </summary>
+        private void HandleBackKey()
+        {
+            if (view == null || !WasBackPressedThisFrame())
+            {
+                return;
+            }
+
+            if (view.IsQuitDialogVisible)
+            {
+                view.HideQuitDialog();
+                return;
+            }
+
+            view.ShowQuitDialog();
+        }
+
+        /// <summary>이번 프레임에 뒤로가기가 눌렸는지 확인한다. 입력 시스템 유무에 따라 읽는 곳이 다르다.</summary>
+        private static bool WasBackPressedThisFrame()
+        {
+#if ENABLE_INPUT_SYSTEM
+            Keyboard keyboard = Keyboard.current;
+            return keyboard != null && keyboard.escapeKey.wasPressedThisFrame;
+#else
+            return Input.GetKeyDown(KeyCode.Escape);
+#endif
+        }
+
+        /// <summary>종료 확인 창에서 `확인`을 눌렀을 때.</summary>
+        private void QuitApp()
+        {
+            quitConfirmed = true;
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
+        /// <summary>
+        /// 로딩 화면을 닫아도 되는 시점을 알린다.
+        /// 지도를 쓸 수 있으면 첫 타일이 그려질 때, 쓸 수 없는 구성이면 즉시 알린다.
+        /// </summary>
+        private void SignalReadyWhenMapIsUsable()
+        {
+            if (!view.IsMapAvailable || view.IsMapRendered)
+            {
+                AppReadySignal.RaiseMapReady();
+                return;
+            }
+
+            view.MapRendered += AppReadySignal.RaiseMapReady;
+        }
+
+        /// <summary>
+        /// 지도 설정을 읽는다. 인스펙터 에셋(MapConfig.asset)이 있으면 그것을 쓰고, 없으면 map_config.json 으로 넘어간다.
+        /// </summary>
+        private bool LoadConfig()
+        {
+            MapConfigAsset settings = Resources.Load<MapConfigAsset>(ConfigAssetResourcePath);
+            if (settings != null)
+            {
+                config = settings.ToMapConfig();
+            }
+            else
+            {
+                TextAsset configJson = Resources.Load<TextAsset>(ConfigResourcePath);
+                if (configJson == null)
+                {
+                    Debug.LogError("[PixelRoad] 지도 설정을 찾지 못했습니다. Resources/"
+                        + ConfigAssetResourcePath + ".asset 또는 Resources/" + ConfigResourcePath + ".json 이 필요합니다.");
+                    return false;
+                }
+
+                config = JsonUtility.FromJson<MapConfig>(configJson.text);
+            }
+
+            if (config == null || config.bounds == null || !config.bounds.IsValid())
+            {
+                Debug.LogError("[PixelRoad] 지도 설정의 좌표 범위가 올바르지 않습니다(북위 > 남위, 동경 > 서경).");
                 return false;
             }
 
-            config = JsonUtility.FromJson<MapConfig>(configAsset.text);
-            if (config == null || config.bounds == null || !config.bounds.IsValid())
+            return true;
+        }
+
+        /// <summary>
+        /// 설정과 랜드마크 JSON을 읽어 스팟 상태와 공간 인덱스를 만든다. 하나라도 없으면 false를 돌려준다.
+        /// </summary>
+        private bool LoadData()
+        {
+            if (!LoadConfig())
             {
-                Debug.LogError("[PixelRoad] Invalid map_config.json bounds.");
                 return false;
             }
 
@@ -175,6 +303,9 @@ namespace PixelRoad.Runtime
             return true;
         }
 
+        /// <summary>
+        /// 현재 위치 주변 스팟을 훑어 반경 안에 들어온 곳을 방문 처리한다. 처음 해금된 스팟은 카드로 보여 준다.
+        /// </summary>
         private void CheckVisits()
         {
             List<SpotRuntimeState> nearby = spatialIndex.Query(currentLocation.Latitude, currentLocation.Longitude, unlockQueryRadiusMeters);
@@ -213,16 +344,35 @@ namespace PixelRoad.Runtime
             }
         }
 
+        /// <summary>마커를 눌렀을 때 해당 스팟 카드를 연다.</summary>
         private void SelectSpot(SpotRuntimeState state)
         {
             view.SelectSpot(state, currentLocation);
         }
 
-        private void ToggleCodex()
+        /// <summary>
+        /// GNB 탭 처리. 현재는 지도와 도감만 동작한다.
+        /// AI 탐험 리포트와 AR은 표시 상태만 관리하고 화면 이동은 아직 없다.
+        /// </summary>
+        private void HandleGnbTabSelected(GnbTab tab)
         {
-            view.SetCodexVisible(!view.IsCodexVisible());
+            switch (tab)
+            {
+                case GnbTab.Map:
+                    view.SetCodexVisible(false);
+                    break;
+
+                case GnbTab.Codex:
+                    view.SetCodexVisible(true);
+                    break;
+
+                case GnbTab.Ar:
+                    view.OnClickARBtn();
+                    break;
+            }
         }
 
+        /// <summary>해금 개수를 다시 세어 진행도 표시와 리포트 탭 상태를 갱신한다.</summary>
         private void RefreshProgress()
         {
             int unlocked = 0;
@@ -235,20 +385,9 @@ namespace PixelRoad.Runtime
             }
 
             view.SetProgress(unlocked, spots.Count);
-        }
-
-        private string BuildLocationStatus()
-        {
-            if (!currentLocation.IsValid)
-            {
-                return locationProvider.StatusText;
-            }
-
-            return string.Format(
-                "{0} | {1:0.000000}, {2:0.000000}",
-                locationProvider.StatusText,
-                currentLocation.Latitude,
-                currentLocation.Longitude);
+            view.SetReportTabState(
+                ReportStateStore.IsReportAvailable(unlocked),
+                ReportStateStore.HasPendingUpdate(unlocked));
         }
     }
 }

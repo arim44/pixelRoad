@@ -15,7 +15,11 @@
 
 ## 현재 landmarks.json이 쓰는 아이콘 이름
 
-`origin`, `station`, `tomb`, `temple`, `museum`, `landmark`, `fort`
+`origin`, `station`, `tomb`, `temple`, `museum`, `landmark`, `fort`,
+`palace`, `gate`, `shrine`, `hanok`, `church`, `tower`, `park`, `market`, `stadium`
+
+이 가운데 실제 PNG가 있는 것은 `station` 뿐이며, 나머지는 위 fallback 순서에 따라
+`category`(`history`·`culture`·`station`·`public`) 아이콘이나 도형 마커로 대체된다.
 
 ## 임포트 설정 권장값
 

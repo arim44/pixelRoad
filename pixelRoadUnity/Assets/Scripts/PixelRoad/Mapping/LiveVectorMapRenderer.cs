@@ -63,6 +63,10 @@ namespace PixelRoad.Mapping
 
         public string LastError { get; private set; }
 
+        /// <summary>
+        /// 설정을 검증하고 전용 카메라와 렌더 타깃을 준비한다. 한 가지라도 갖춰지지 않으면
+        /// false를 돌려주어 호출 측이 지도 없이 진행하도록 한다.
+        /// </summary>
         public bool Initialize(
             MapConfig mapConfig,
             RectTransform mapViewport,
@@ -150,6 +154,7 @@ namespace PixelRoad.Mapping
             return true;
         }
 
+        /// <summary>화면 드래그량만큼 지도를 옮긴다. 캔버스 배율을 나눠 해상도가 달라도 이동감이 같도록 한다.</summary>
         public void Pan(Vector2 screenDelta)
         {
             if (!initialized)
@@ -164,6 +169,7 @@ namespace PixelRoad.Mapping
             RefreshViewAndTiles();
         }
 
+        /// <summary>지정한 화면 지점을 고정한 채 확대·축소해, 손가락이 짚은 곳이 밀려나지 않게 한다.</summary>
         public void ZoomAt(float factor, Vector2 screenPosition)
         {
             if (!initialized)
@@ -184,6 +190,7 @@ namespace PixelRoad.Mapping
             RefreshViewAndTiles();
         }
 
+        /// <summary>지도 중심을 특정 위경도로 옮긴다.</summary>
         public void SetCenter(double latitude, double longitude)
         {
             if (!initialized)
@@ -195,6 +202,7 @@ namespace PixelRoad.Mapping
             RefreshViewAndTiles();
         }
 
+        /// <summary>위경도를 뷰포트 기준 좌표로 바꾼다. 마커를 지도 위에 얹을 때 쓴다.</summary>
         public Vector2 LatLonToViewportLocal(double latitude, double longitude)
         {
             if (!initialized)
@@ -205,6 +213,7 @@ namespace PixelRoad.Mapping
             return view.WorldToLocal(SlippyMapProjection.LatLonToWorld(latitude, longitude));
         }
 
+        /// <summary>해당 지점이 화면 안(여유 폭 포함)에 있는지 판단해 마커 표시 여부를 정한다.</summary>
         public bool IsInViewport(double latitude, double longitude, float padding = 0f)
         {
             Vector2 local = LatLonToViewportLocal(latitude, longitude);
@@ -212,6 +221,7 @@ namespace PixelRoad.Mapping
             return Mathf.Abs(local.x) <= halfSize.x + padding && Mathf.Abs(local.y) <= halfSize.y + padding;
         }
 
+        /// <summary>픽셀 모드를 켜고 끈다. 렌더 타깃 해상도와 필터링이 함께 바뀐다.</summary>
         public void SetPixelMode(bool enabled)
         {
             if (!initialized || pixelMode == enabled)
@@ -223,6 +233,7 @@ namespace PixelRoad.Mapping
             EnsureRenderTexture(true);
         }
 
+        /// <summary>뷰포트 크기 변화만 감시한다. 화면 회전이나 레이아웃 변경 시 렌더 타깃을 다시 맞춘다.</summary>
         private void Update()
         {
             if (!initialized || shuttingDown)
@@ -238,6 +249,10 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 카메라를 현재 뷰에 맞추고, 보이는 타일은 배치하고 나머지는 정리한다.
+        /// 화면이 바뀔 때마다 불리는 이 클래스의 중심 흐름이다.
+        /// </summary>
         private void RefreshViewAndTiles()
         {
             if (!initialized || shuttingDown || viewport.rect.width <= 1f || viewport.rect.height <= 1f)
@@ -305,6 +320,7 @@ namespace PixelRoad.Mapping
             ViewChanged?.Invoke();
         }
 
+        /// <summary>화면 밖으로 나간 타일 오브젝트를 없애 씬이 계속 커지는 것을 막는다.</summary>
         private void RemoveInvisibleTiles()
         {
             List<TileKey> remove = null;
@@ -336,6 +352,7 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>더 이상 필요 없는 타일 요청을 중단해 대역폭과 동시 요청 슬롯을 아낀다.</summary>
         private void CancelInvisibleRequests()
         {
             foreach (KeyValuePair<TileKey, RequestContext> pair in pendingRequests)
@@ -350,6 +367,10 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 동시 요청 한도를 지키며 대기열에서 타일을 꺼내 내려받기를 시작한다.
+        /// 꺼내는 시점에 이미 필요 없어졌거나 확보된 타일은 건너뛴다.
+        /// </summary>
         private void PumpRequestQueue()
         {
             if (shuttingDown || !initialized)
@@ -376,6 +397,10 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 타일 하나를 확보해 메시로 만든다. 디스크 캐시를 먼저 보고, 필요하면 조건부 요청으로
+        /// 재검증하며, 디코딩은 워커 스레드로 넘겨 프레임이 멈추지 않게 한다.
+        /// </summary>
         private IEnumerator RequestTile(TileKey key, RequestContext context)
         {
             long nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -529,6 +554,7 @@ namespace PixelRoad.Mapping
             CompleteRequest(key);
         }
 
+        /// <summary>요청을 진행 목록에서 빼고 빈 슬롯만큼 다음 타일을 이어서 받는다.</summary>
         private void CompleteRequest(TileKey key)
         {
             pendingRequests.Remove(key);
@@ -538,6 +564,7 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>디코딩 결과를 실제 메시로 올린다. 정점이 많으면 32비트 인덱스로 전환한다.</summary>
         private Mesh CreateMesh(TileKey key, VectorTileMeshData data)
         {
             Mesh mesh = new Mesh
@@ -554,6 +581,10 @@ namespace PixelRoad.Mapping
             return mesh;
         }
 
+        /// <summary>
+        /// 타일 메시를 씬에 올려 지도 카메라에만 보이게 한다. 첫 타일이 올라오는 순간
+        /// 출력 이미지를 켜고 준비 완료를 알린다.
+        /// </summary>
         private void ActivateTile(VisibleTile visible, Mesh mesh)
         {
             if (activeTiles.ContainsKey(visible.Key))
@@ -583,6 +614,7 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>기준 타일에서의 상대 위치로 배치해 좌표가 커져도 정밀도가 흔들리지 않게 한다.</summary>
         private void PositionTile(Transform tileTransform, VisibleTile visible)
         {
             tileTransform.localPosition = new Vector3(
@@ -591,6 +623,7 @@ namespace PixelRoad.Mapping
                 0f);
         }
 
+        /// <summary>최근 사용 시점을 갱신해 메모리 정리 때 살아남도록 한다.</summary>
         private void TouchMemoryEntry(TileKey key)
         {
             if (memoryCache.TryGetValue(key, out CachedMesh cached))
@@ -599,6 +632,10 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 메모리 캐시가 한도를 넘으면 가장 오래 안 쓴 메시부터 해제한다.
+        /// 지금 화면에 쓰이거나 요청 중인 타일은 후보에서 제외한다.
+        /// </summary>
         private void TrimMemoryCache()
         {
             int maximum = Mathf.Max(8, config.maxMemoryTileCount);
@@ -630,6 +667,10 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 뷰포트 크기와 픽셀 모드에 맞는 렌더 타깃을 준비한다. 기기 한계를 넘지 않도록 크기를 줄이고,
+        /// 픽셀 모드에서는 일부러 낮은 해상도와 Point 필터를 써서 도트 느낌을 낸다.
+        /// </summary>
         private void EnsureRenderTexture(bool force)
         {
             if (viewport == null || output == null || mapCamera == null)
@@ -680,6 +721,7 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>다른 카메라가 타일 레이어를 그리지 않게 막아 지도 지오메트리가 씬에 겹쳐 보이는 것을 막는다.</summary>
         private void ExcludeVectorLayerFromOtherCameras()
         {
             Camera[] cameras = FindObjectsByType<Camera>(FindObjectsSortMode.None);
@@ -693,6 +735,7 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>초기화 실패 사유를 남기고 경고를 찍은 뒤 false를 돌려주는 공통 처리다.</summary>
         private bool FailInitialization(string message)
         {
             LastError = message;
@@ -700,6 +743,7 @@ namespace PixelRoad.Mapping
             return false;
         }
 
+        /// <summary>타일 실패를 기록한다. 같은 오류가 쏟아질 수 있으므로 로그는 앞의 몇 건만 남긴다.</summary>
         private void RecordFailure(TileKey key, string message)
         {
             LastError = message;
@@ -710,6 +754,10 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 진행 중인 요청을 끊고 메시·렌더 타깃·머티리얼 등 직접 만든 자원을 모두 해제한다.
+        /// 씬 전환마다 누수가 쌓이지 않게 하는 마무리 지점이다.
+        /// </summary>
         private void OnDestroy()
         {
             shuttingDown = true;
@@ -751,21 +799,27 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>현재 씬에 올라가 있는 타일 오브젝트를 가리킨다.</summary>
         private sealed class ActiveTile
         {
             public readonly GameObject GameObject;
 
+            /// <summary>씬에 배치된 타일 오브젝트를 감싼다.</summary>
             public ActiveTile(GameObject gameObject)
             {
                 GameObject = gameObject;
             }
         }
 
+        /// <summary>
+        /// 다시 화면에 들어올 때 곧바로 쓰려고 붙잡아 둔 메시. 사용 프레임을 함께 기록해 정리 순서를 정한다.
+        /// </summary>
         private sealed class CachedMesh
         {
             public readonly Mesh Mesh;
             public int LastUsedFrame;
 
+            /// <summary>메시와 마지막 사용 프레임을 묶어 보관한다.</summary>
             public CachedMesh(Mesh mesh, int lastUsedFrame)
             {
                 Mesh = mesh;
@@ -773,6 +827,9 @@ namespace PixelRoad.Mapping
             }
         }
 
+        /// <summary>
+        /// 진행 중인 타일 요청의 취소 상태를 코루틴 바깥에서 다룰 수 있게 들고 있는 핸들이다.
+        /// </summary>
         private sealed class RequestContext
         {
             public UnityWebRequest Request;
