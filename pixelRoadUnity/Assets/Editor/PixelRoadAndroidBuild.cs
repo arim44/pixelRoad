@@ -95,7 +95,9 @@ namespace PixelRoad.Editor
 
             BuildPlayerOptions options = new BuildPlayerOptions
             {
-                scenes = new[] { "Assets/Scenes/MapScene.unity" },
+                // 씬 목록은 Build Settings(Loading → MapScene)를 그대로 따른다.
+                // 여기에 하드코딩하면 로딩 씬이 빠져 첫 화면이 달라진다.
+                scenes = CollectEnabledScenes(),
                 locationPathName = outputPath,
                 target = BuildTarget.Android,
                 options = buildOptions
@@ -110,6 +112,29 @@ namespace PixelRoad.Editor
             Debug.Log(
                 "[PixelRoad] Android " + buildLabel + " APK: " + outputPath
                 + " (" + report.summary.totalSize + " bytes)");
+        }
+
+        /// <summary>Build Settings에 등록된 활성 씬 경로를 순서대로 모은다. 하나도 없으면 예외를 던진다.</summary>
+        private static string[] CollectEnabledScenes()
+        {
+            EditorBuildSettingsScene[] registered = EditorBuildSettings.scenes;
+            System.Collections.Generic.List<string> paths =
+                new System.Collections.Generic.List<string>(registered.Length);
+            for (int index = 0; index < registered.Length; index++)
+            {
+                if (registered[index].enabled)
+                {
+                    paths.Add(registered[index].path);
+                }
+            }
+
+            if (paths.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "Build Settings에 활성 씬이 없습니다. Tools > Pixel Road > Register Build Scenes 를 먼저 실행하세요.");
+            }
+
+            return paths.ToArray();
         }
 
         /// <summary>커맨드라인에서 지정한 인자 값을 찾는다. 없으면 null을 돌려준다.</summary>
