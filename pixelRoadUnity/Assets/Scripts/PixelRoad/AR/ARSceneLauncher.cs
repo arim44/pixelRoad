@@ -88,6 +88,7 @@ namespace PixelRoad.AR
                     definition.Category,
                     definition.Latitude,
                     definition.Longitude,
+                    definition.RadiusMeters,
                     spots[i].IsUnlocked));
             }
 

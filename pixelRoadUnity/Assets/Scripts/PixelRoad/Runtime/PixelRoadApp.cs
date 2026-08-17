@@ -406,8 +406,13 @@ namespace PixelRoad.Runtime
             }
 
             ARConfig arConfig = ARSceneLauncher.LoadConfig();
+            // ARScene은 arDisplayRadiusMeters + 랜드마크 자신의 방문 반경까지 벗어나야 핀을 숨기므로,
+            // 넘겨줄 후보 목록도 그만큼 넉넉하게 조회해야 경계에 걸친 랜드마크가 누락되지 않는다.
+            // unlockQueryRadiusMeters는 전체 랜드마크 중 가장 큰 방문 반경(이상)이라 상한으로 쓸 수 있다.
             List<SpotRuntimeState> nearby = spatialIndex.Query(
-                currentLocation.Latitude, currentLocation.Longitude, arConfig.arDisplayRadiusMeters);
+                currentLocation.Latitude,
+                currentLocation.Longitude,
+                arConfig.arDisplayRadiusMeters + unlockQueryRadiusMeters);
             StartCoroutine(ARSceneLauncher.LoadARScene(nearby, currentLocation));
         }
 

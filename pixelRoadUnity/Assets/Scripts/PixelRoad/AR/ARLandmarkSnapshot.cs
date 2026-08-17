@@ -9,6 +9,7 @@ namespace PixelRoad.AR
         public readonly string Category;
         public readonly double Latitude;
         public readonly double Longitude;
+        public readonly float RadiusMeters;
         public readonly bool IsUnlocked;
 
         public ARLandmarkSnapshot(
@@ -18,6 +19,7 @@ namespace PixelRoad.AR
             string category,
             double latitude,
             double longitude,
+            float radiusMeters,
             bool isUnlocked)
         {
             Id = id;
@@ -26,6 +28,7 @@ namespace PixelRoad.AR
             Category = category;
             Latitude = latitude;
             Longitude = longitude;
+            RadiusMeters = radiusMeters;
             IsUnlocked = isUnlocked;
         }
     }

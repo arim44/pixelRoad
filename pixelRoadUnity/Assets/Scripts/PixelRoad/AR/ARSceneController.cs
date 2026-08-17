@@ -280,7 +280,9 @@ namespace PixelRoad.AR
                     currentLocation.Longitude,
                     landmark.Latitude,
                     landmark.Longitude);
-                if (distance > config.arDisplayRadiusMeters)
+                // 방문(해금) 반경 안에 들어와 있으면 표시 반경을 살짝 벗어나도 계속 보여준다 -
+                // 그렇지 않으면 랜드마크 코앞까지 걸어가는 도중에 핀이 먼저 꺼져 버릴 수 있다.
+                if (distance > config.arDisplayRadiusMeters + landmark.RadiusMeters)
                 {
                     view.Hide(landmark.Id);
                     continue;
