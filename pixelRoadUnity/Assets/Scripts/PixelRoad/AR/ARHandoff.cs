@@ -25,6 +25,13 @@ namespace PixelRoad.AR
         public static float InitialHeadingDegrees { get; private set; }
         public static bool HasInitialHeading { get; private set; }
 
+        /// <summary>
+        /// MapScene에서 만든 로딩 화면(DontDestroyOnLoad로 씬 전환을 넘어 살아있음)을 ARScene에 넘긴다.
+        /// ARSceneController가 자기 UI를 다 세운 뒤 이걸 가져가 페이드아웃시킨다 - MapScene에 있을 때
+        /// 미리 페이드아웃해 버리면 전환 애니메이션 도중 지도 화면이 잠깐 다시 보이는(깜빡이는) 문제가 있었다.
+        /// </summary>
+        public static LoadingScreenView PendingLoadingScreen { get; set; }
+
         public static void Prepare(
             IReadOnlyList<ARLandmarkSnapshot> landmarks,
             IReadOnlyList<SpotRuntimeState> spots,

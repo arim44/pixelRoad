@@ -4,43 +4,31 @@ using PixelRoad.Data;
 using PixelRoad.UI;
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace PixelRoad.AR
 {
-    /// <summary>ARScene의 절차적 오버레이 UI: 랜드마크별 아이콘/거리 라벨, 화면 밖 방향 화살표, 상태 메시지, 뒤로가기.</summary>
+    /// <summary>
+    /// ARScene의 오버레이 UI 갱신: 랜드마크별 아이콘/거리 라벨, 화면 밖 방향 화살표, 상태 메시지, 뒤로가기.
+    /// UI 구조 자체는 AROverlayUIRoot.prefab(및 랜드마크 핀은 ARLandmarkPinView.prefab)이 갖고 있고,
+    /// 이 클래스는 그 참조(AROverlayUiBindings)를 받아 값만 갱신한다 - MapScene의 PixelRoadRuntimeView와 같은 패턴이다.
+    /// </summary>
     public sealed class AROverlayView
     {
-        private const string MapSceneName = "MapScene";
         private const string NoLandmarksMessage = "근처에 랜드마크가 없습니다.\n잠시 후 지도로 돌아갑니다.";
         private const float BlinkFrequencyHz = 2f;
         private const float MinBlinkAlpha = 0.25f;
-        private const float CaptureButtonSize = 88f;
-        private const float CaptureButtonBottomMargin = 48f;
-        private const float ThumbnailWidth = 160f;
-        private const float ThumbnailHeight = 220f;
-        private const float ThumbnailMargin = 16f;
-        private const float ThumbnailFrameBorder = 6f;
-        private const float FocusDirectionArrowSize = 96f;
-        private const float FocusDirectionArrowVerticalOffset = 180f;
 
         private static readonly Color32 UnlockedIconTint = Color.white;
         private static readonly Color32 LockedIconTint = new Color32(124, 120, 112, 235);
         private static readonly Color32 TextColor = new Color32(246, 237, 217, 255);
         private static readonly Color32 FallbackIconColor = new Color32(208, 56, 48, 255);
 
-        private readonly RectTransform overlayRoot;
+        private readonly AROverlayUiBindings uiBindings;
         private readonly ARConfig config;
         private readonly SpotIconLibrary iconLibrary;
         private readonly Dictionary<string, LandmarkBinding> bindings = new Dictionary<string, LandmarkBinding>();
         private readonly Sprite arrowSprite;
-        private readonly TMP_Text statusText;
-        private readonly TMP_Text toastText;
-        private readonly Button captureButton;
-        private readonly Button backButton;
-        private readonly Image thumbnailImage;
-        private readonly Image focusDirectionArrow;
 
         /// <summary>촬영 버튼이 눌렸을 때 발생한다. 실제 캡처·저장은 코루틴이 필요해 ARSceneController가 처리한다.</summary>
         public event Action CaptureRequested;
@@ -51,31 +39,45 @@ namespace PixelRoad.AR
         /// <summary>랜드마크 핀(아이콘)을 눌렀을 때 그 랜드마크의 id와 함께 발생한다.</summary>
         public event Action<string> LandmarkClicked;
 
-        public AROverlayView(RectTransform overlayRoot, ARConfig config)
+        /// <summary>뒤로가기 버튼을 눌렀을 때 발생한다. 씬 전환은 로딩 화면이 필요해 ARSceneController가 처리한다.</summary>
+        public event Action BackRequested;
+
+        public AROverlayView(AROverlayUiBindings uiBindings, ARConfig config)
         {
-            this.overlayRoot = overlayRoot;
+            this.uiBindings = uiBindings;
             this.config = config;
+            uiBindings.ValidateReferences();
+
             iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName);
+
+            // 프레임 테두리 화살표(엣지)와 나침반 화살표(집중 모드)는 랜드마크마다 다른 아이콘과 달리
+            // 데이터 없이 고정된 픽셀아트라, 프리팹에 굽는 대신 지금처럼 코드로 계속 생성해 붙인다.
             arrowSprite = ARUiFactory.CreateTriangleSprite(config.edgeArrowPixelSize, TextColor);
 
-            backButton = CreateBackButton();
-            statusText = CreateStatusText();
-            toastText = CreateToastText();
-            captureButton = CreateCaptureButton();
-            thumbnailImage = CreateCaptureThumbnail();
-            focusDirectionArrow = CreateFocusDirectionArrow();
+            uiBindings.CaptureButtonImage.sprite = ARUiFactory.CreateCircleSprite(
+                (int)uiBindings.CaptureButtonImage.rectTransform.sizeDelta.x, Color.white);
+            uiBindings.FocusDirectionArrow.sprite = arrowSprite;
+
+            uiBindings.BackButton.onClick.AddListener(() => BackRequested?.Invoke());
+            uiBindings.CaptureButton.onClick.AddListener(() => CaptureRequested?.Invoke());
+            uiBindings.ThumbnailButton.onClick.AddListener(() => ThumbnailClicked?.Invoke());
+
+            uiBindings.StatusText.gameObject.SetActive(false);
+            uiBindings.ToastText.gameObject.SetActive(false);
+            uiBindings.ThumbnailFrame.SetActive(false);
+            uiBindings.FocusDirectionArrow.gameObject.SetActive(false);
         }
 
         /// <summary>화면 위쪽에 짧은 안내 문구를 잠깐 보여준다(예: 갤러리 열기 실패). 자동으로 사라지지는 않고, 다시 호출하면 내용만 갱신된다.</summary>
         public void ShowToast(string message)
         {
-            toastText.text = message;
-            toastText.gameObject.SetActive(true);
+            uiBindings.ToastText.text = message;
+            uiBindings.ToastText.gameObject.SetActive(true);
         }
 
         public void HideToast()
         {
-            toastText.gameObject.SetActive(false);
+            uiBindings.ToastText.gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -84,26 +86,26 @@ namespace PixelRoad.AR
         /// </summary>
         public void SetCaptureUiVisible(bool visible)
         {
-            captureButton.gameObject.SetActive(visible);
-            backButton.gameObject.SetActive(visible);
+            uiBindings.CaptureButton.gameObject.SetActive(visible);
+            uiBindings.BackButton.gameObject.SetActive(visible);
             if (!visible)
             {
-                thumbnailImage.transform.parent.gameObject.SetActive(false);
+                uiBindings.ThumbnailFrame.SetActive(false);
             }
         }
 
         /// <summary>방금 찍은 사진을 화면 오른쪽 아래에 작게 띄운다. 스프라이트 소유권은 호출측이 계속 갖고, 다 쓰면 텍스처를 직접 정리해야 한다.</summary>
         public void ShowCapturedThumbnail(Sprite sprite)
         {
-            thumbnailImage.sprite = sprite;
-            thumbnailImage.transform.parent.gameObject.SetActive(true);
+            uiBindings.ThumbnailImage.sprite = sprite;
+            uiBindings.ThumbnailFrame.SetActive(true);
         }
 
         /// <summary>썸네일을 감춘다 - 원본 사진이 갤러리에서 삭제된 것으로 확인됐을 때 등에 쓴다.</summary>
         public void HideCapturedThumbnail()
         {
-            thumbnailImage.sprite = null;
-            thumbnailImage.transform.parent.gameObject.SetActive(false);
+            uiBindings.ThumbnailImage.sprite = null;
+            uiBindings.ThumbnailFrame.SetActive(false);
         }
 
         /// <summary>ARCore 미지원 등 랜드마크 갱신을 멈추고 안내만 보여줘야 할 때 쓴다. null/빈 문자열이면 숨긴다.</summary>
@@ -112,11 +114,11 @@ namespace PixelRoad.AR
             bool visible = !string.IsNullOrEmpty(message);
             if (visible)
             {
-                statusText.text = message;
-                statusText.color = TextColor;
+                uiBindings.StatusText.text = message;
+                uiBindings.StatusText.color = TextColor;
             }
 
-            statusText.gameObject.SetActive(visible);
+            uiBindings.StatusText.gameObject.SetActive(visible);
         }
 
         /// <summary>
@@ -127,17 +129,17 @@ namespace PixelRoad.AR
         {
             if (!visible)
             {
-                statusText.gameObject.SetActive(false);
+                uiBindings.StatusText.gameObject.SetActive(false);
                 return;
             }
 
-            statusText.text = NoLandmarksMessage;
-            statusText.gameObject.SetActive(true);
+            uiBindings.StatusText.text = NoLandmarksMessage;
+            uiBindings.StatusText.gameObject.SetActive(true);
             float phase = elapsedSeconds * BlinkFrequencyHz * Mathf.PI * 2f;
             float alpha = MinBlinkAlpha + (1f - MinBlinkAlpha) * (0.5f + 0.5f * Mathf.Sin(phase));
             Color color = TextColor;
             color.a = alpha;
-            statusText.color = color;
+            uiBindings.StatusText.color = color;
         }
 
         /// <summary>anchoredY는 카메라를 위/아래로 기울인 정도(피치)에 따라 계산된 세로 위치다.</summary>
@@ -165,7 +167,7 @@ namespace PixelRoad.AR
             binding.Icon.rectTransform.sizeDelta = new Vector2(config.edgeArrowPixelSize, config.edgeArrowPixelSize);
             binding.Icon.rectTransform.localEulerAngles = new Vector3(0f, 0f, rightSide ? -90f : 90f);
 
-            float halfWidth = overlayRoot.rect.width * 0.5f;
+            float halfWidth = uiBindings.LandmarkRoot.rect.width * 0.5f;
             float x = Mathf.Max(0f, halfWidth - config.edgeMarginPixels);
             float y = baseAnchoredY + StackedOffsetY(sameSideSlotIndex, config.edgeStackSpacingPixels);
             binding.Root.anchoredPosition = new Vector2(rightSide ? x : -x, y);
@@ -202,15 +204,16 @@ namespace PixelRoad.AR
         /// </summary>
         public void ShowFocusDirection(float deltaDegrees)
         {
-            focusDirectionArrow.gameObject.SetActive(true);
-            focusDirectionArrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, -deltaDegrees);
+            uiBindings.FocusDirectionArrow.gameObject.SetActive(true);
+            uiBindings.FocusDirectionArrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, -deltaDegrees);
         }
 
         public void HideFocusDirection()
         {
-            focusDirectionArrow.gameObject.SetActive(false);
+            uiBindings.FocusDirectionArrow.gameObject.SetActive(false);
         }
 
+        /// <summary>랜드마크 핀 프리팹을 Instantiate해서 바인딩을 만든다. id별로 한 번만 만들고 이후에는 재사용한다.</summary>
         private LandmarkBinding GetOrCreateBinding(ARLandmarkSnapshot landmark)
         {
             if (bindings.TryGetValue(landmark.Id, out LandmarkBinding existing))
@@ -218,45 +221,22 @@ namespace PixelRoad.AR
                 return existing;
             }
 
-            RectTransform root = ARUiFactory.CreateRect("Landmark_" + landmark.Id, overlayRoot);
-            root.anchorMin = new Vector2(0.5f, 0.5f);
-            root.anchorMax = new Vector2(0.5f, 0.5f);
-            root.pivot = new Vector2(0.5f, 0.5f);
-            root.sizeDelta = Vector2.zero;
+            ARLandmarkPinView pin = UnityEngine.Object.Instantiate(uiBindings.LandmarkPinPrefab, uiBindings.LandmarkRoot);
+            pin.name = "Landmark_" + landmark.Id;
 
             Sprite normalSprite = ResolveIconSprite(landmark);
-
-            Image icon = ARUiFactory.CreateObject("Icon", root).AddComponent<Image>();
-            icon.raycastTarget = true;
-            icon.preserveAspect = true;
-            icon.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-            icon.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            icon.rectTransform.sizeDelta = new Vector2(config.iconPixelSize, config.iconPixelSize);
-            icon.sprite = normalSprite;
-            icon.color = landmark.IsUnlocked ? (Color)UnlockedIconTint : (Color)LockedIconTint;
+            pin.Icon.sprite = normalSprite;
+            pin.Icon.color = landmark.IsUnlocked ? (Color)UnlockedIconTint : (Color)LockedIconTint;
 
             string landmarkId = landmark.Id;
-            Button iconButton = icon.gameObject.AddComponent<Button>();
-            iconButton.targetGraphic = icon;
-            iconButton.onClick.AddListener(() => LandmarkClicked?.Invoke(landmarkId));
+            pin.Button.onClick.AddListener(() => LandmarkClicked?.Invoke(landmarkId));
 
-            TMP_Text label = ARUiFactory.CreateText(
-                "Distance",
-                root,
-                string.Empty,
-                18,
-                TextAlignmentOptions.Center,
-                TextColor);
-            label.raycastTarget = false;
-            RectTransform labelRect = label.rectTransform;
-            labelRect.anchorMin = new Vector2(0.5f, 0f);
-            labelRect.anchorMax = new Vector2(0.5f, 0f);
-            labelRect.pivot = new Vector2(0.5f, 1f);
-            labelRect.sizeDelta = new Vector2(160f, 32f);
-            labelRect.anchoredPosition = new Vector2(0f, -(config.iconPixelSize * 0.5f) - 4f);
+            // 거리 라벨 위치는 아이콘 크기(iconPixelSize) 기준으로 한 번만 잡는다 - 엣지 화살표 모드로
+            // 바뀌어도(아이콘이 더 작은 edgeArrowPixelSize로 바뀌어도) 라벨 자리는 그대로 유지된다.
+            pin.DistanceLabel.rectTransform.anchoredPosition = new Vector2(0f, -(config.iconPixelSize * 0.5f) - 4f);
 
-            LandmarkBinding binding = new LandmarkBinding(root, icon, label, normalSprite);
+            LandmarkBinding binding = new LandmarkBinding(
+                (RectTransform)pin.transform, pin.Icon, pin.DistanceLabel, normalSprite);
             bindings[landmark.Id] = binding;
             return binding;
         }
@@ -267,144 +247,6 @@ namespace PixelRoad.AR
             return sprite != null
                 ? sprite
                 : ARUiFactory.CreateDiamondSprite(config.iconPixelSize, FallbackIconColor);
-        }
-
-        private Button CreateBackButton()
-        {
-            Button button = ARUiFactory.CreateButton(
-                "BackButton",
-                overlayRoot,
-                "지도로",
-                new Vector2(112f, 52f),
-                new Color32(239, 228, 199, 255),
-                new Color32(18, 17, 15, 255));
-            RectTransform rect = button.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0f, 1f);
-            rect.anchoredPosition = new Vector2(16f, -16f);
-            button.onClick.AddListener(() =>
-            {
-                ARHandoff.Clear();
-                SceneManager.LoadScene(MapSceneName);
-            });
-            return button;
-        }
-
-        /// <summary>화면 아래쪽 가운데의 원형 촬영 버튼. 카메라 셔터 버튼 모양을 흉내낸 흰색 원이다.</summary>
-        private Button CreateCaptureButton()
-        {
-            GameObject buttonObject = ARUiFactory.CreateObject("CaptureButton", overlayRoot);
-            RectTransform rect = buttonObject.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0f);
-            rect.anchorMax = new Vector2(0.5f, 0f);
-            rect.pivot = new Vector2(0.5f, 0f);
-            rect.sizeDelta = new Vector2(CaptureButtonSize, CaptureButtonSize);
-            rect.anchoredPosition = new Vector2(0f, CaptureButtonBottomMargin);
-
-            Image image = buttonObject.AddComponent<Image>();
-            image.sprite = ARUiFactory.CreateCircleSprite((int)CaptureButtonSize, Color.white);
-            image.color = Color.white;
-
-            Button button = buttonObject.AddComponent<Button>();
-            button.targetGraphic = image;
-            button.onClick.AddListener(() => CaptureRequested?.Invoke());
-            return button;
-        }
-
-        /// <summary>
-        /// 화면 오른쪽 아래의 작은 촬영 결과 미리보기. 테두리 프레임 안에 실제 사진을 채우고,
-        /// 프레임 전체를 눌러 갤러리로 이동할 수 있게 Button을 붙인다.
-        /// 반환하는 Image의 부모 GameObject가 곧 프레임이다(표시/숨김은 그 부모를 켜고 끈다).
-        /// </summary>
-        private Image CreateCaptureThumbnail()
-        {
-            GameObject frame = ARUiFactory.CreateObject("CaptureThumbnailFrame", overlayRoot);
-            RectTransform frameRect = frame.GetComponent<RectTransform>();
-            frameRect.anchorMin = new Vector2(1f, 0f);
-            frameRect.anchorMax = new Vector2(1f, 0f);
-            frameRect.pivot = new Vector2(1f, 0f);
-            frameRect.sizeDelta = new Vector2(ThumbnailWidth, ThumbnailHeight);
-            frameRect.anchoredPosition = new Vector2(-ThumbnailMargin, ThumbnailMargin);
-
-            Image frameBackground = frame.AddComponent<Image>();
-            frameBackground.color = new Color32(18, 17, 15, 220);
-
-            Button frameButton = frame.AddComponent<Button>();
-            frameButton.targetGraphic = frameBackground;
-            frameButton.onClick.AddListener(() => ThumbnailClicked?.Invoke());
-
-            RectTransform photoRect = ARUiFactory.CreateRect("Photo", frame.transform);
-            photoRect.anchorMin = Vector2.zero;
-            photoRect.anchorMax = Vector2.one;
-            photoRect.offsetMin = new Vector2(ThumbnailFrameBorder, ThumbnailFrameBorder);
-            photoRect.offsetMax = new Vector2(-ThumbnailFrameBorder, -ThumbnailFrameBorder);
-
-            Image photo = photoRect.gameObject.AddComponent<Image>();
-            photo.preserveAspect = true;
-            photo.raycastTarget = false;
-
-            frame.SetActive(false);
-            return photo;
-        }
-
-        /// <summary>화면 중앙보다 살짝 아래, 집중 모드 나침반 화살표. 평상시엔 숨겨 둔다.</summary>
-        private Image CreateFocusDirectionArrow()
-        {
-            GameObject arrow = ARUiFactory.CreateObject("FocusDirectionArrow", overlayRoot);
-            RectTransform rect = arrow.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(FocusDirectionArrowSize, FocusDirectionArrowSize);
-            rect.anchoredPosition = new Vector2(0f, -FocusDirectionArrowVerticalOffset);
-
-            Image image = arrow.AddComponent<Image>();
-            image.sprite = arrowSprite;
-            image.preserveAspect = true;
-            image.raycastTarget = false;
-
-            arrow.SetActive(false);
-            return image;
-        }
-
-        private TMP_Text CreateStatusText()
-        {
-            TMP_Text text = ARUiFactory.CreateText(
-                "StatusMessage",
-                overlayRoot,
-                string.Empty,
-                22,
-                TextAlignmentOptions.Center,
-                TextColor);
-            text.raycastTarget = false;
-            RectTransform rect = text.rectTransform;
-            rect.anchorMin = new Vector2(0.1f, 0.4f);
-            rect.anchorMax = new Vector2(0.9f, 0.6f);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            text.gameObject.SetActive(false);
-            return text;
-        }
-
-        /// <summary>화면 위쪽에 짧게 뜨는 안내 문구. 화면 정중앙(상태 메시지 자리)과 겹치지 않게 그 위쪽에 둔다.</summary>
-        private TMP_Text CreateToastText()
-        {
-            TMP_Text text = ARUiFactory.CreateText(
-                "Toast",
-                overlayRoot,
-                string.Empty,
-                18,
-                TextAlignmentOptions.Center,
-                TextColor);
-            text.raycastTarget = false;
-            RectTransform rect = text.rectTransform;
-            rect.anchorMin = new Vector2(0.1f, 0.68f);
-            rect.anchorMax = new Vector2(0.9f, 0.76f);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            text.gameObject.SetActive(false);
-            return text;
         }
 
         private static string FormatDistance(double distanceMeters)

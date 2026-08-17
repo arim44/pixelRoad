@@ -6,7 +6,6 @@ using PixelRoad.Data;
 using PixelRoad.Geo;
 using PixelRoad.Location;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.XR.ARFoundation;
 
 namespace PixelRoad.AR
@@ -17,15 +16,15 @@ namespace PixelRoad.AR
     /// </summary>
     public sealed class ARSceneController : MonoBehaviour
     {
-        private const string MapSceneName = "MapScene";
         private const float NoLandmarksTimeoutSeconds = 5f;
         private const float ToastDisplaySeconds = 3f;
+        private const float LoadingFadeOutSeconds = 0.25f;
 
         [SerializeField]
         private Camera arCamera;
 
         [SerializeField]
-        private RectTransform overlayRoot;
+        private AROverlayUiBindings uiBindings;
 
         [SerializeField]
         private ARSession arSession;
@@ -47,11 +46,17 @@ namespace PixelRoad.AR
         private IEnumerator Start()
         {
             config = ARSceneLauncher.LoadConfig();
-            view = new AROverlayView(overlayRoot, config);
+            view = new AROverlayView(uiBindings, config);
             view.CaptureRequested += OnCaptureRequested;
             view.ThumbnailClicked += OnThumbnailClicked;
             view.LandmarkClicked += OnLandmarkClicked;
+            view.BackRequested += OnBackRequested;
             RestoreLastCapture();
+
+            // AR 화면 UI가 다 세워진 지금 로딩 화면을 이어받아 페이드아웃시킨다. MapScene에서 미리
+            // 끄면 씬이 바뀌기 전에 지도 화면이 잠깐 다시 보여 깜빡이는 것처럼 보이는 문제가 있었다.
+            ARHandoff.PendingLoadingScreen?.FadeOutAndDestroy(LoadingFadeOutSeconds);
+            ARHandoff.PendingLoadingScreen = null;
             currentLocation = ARHandoff.InitialLocation;
 
 #if UNITY_EDITOR
@@ -108,6 +113,7 @@ namespace PixelRoad.AR
                 view.CaptureRequested -= OnCaptureRequested;
                 view.ThumbnailClicked -= OnThumbnailClicked;
                 view.LandmarkClicked -= OnLandmarkClicked;
+                view.BackRequested -= OnBackRequested;
             }
 
             locationProvider?.Stop();
@@ -128,6 +134,18 @@ namespace PixelRoad.AR
         private void OnCaptureRequested()
         {
             StartCoroutine(CaptureScreenshotRoutine());
+        }
+
+        private void OnBackRequested()
+        {
+            ReturnToMapScene();
+        }
+
+        /// <summary>로딩 화면을 띄우며 MapScene으로 돌아간다. 뒤로가기와 근처 랜드마크 없음 타임아웃이 함께 쓴다.</summary>
+        private void ReturnToMapScene()
+        {
+            ARHandoff.Clear();
+            StartCoroutine(ARSceneLauncher.LoadMapScene());
         }
 
         private void OnThumbnailClicked()
@@ -249,8 +267,8 @@ namespace PixelRoad.AR
         {
             float horizontalFov = ARCompassMath.HorizontalFovDegrees(arCamera);
             float verticalFov = arCamera.fieldOfView;
-            float halfCanvasWidth = overlayRoot.rect.width * 0.5f;
-            float halfCanvasHeight = overlayRoot.rect.height * 0.5f;
+            float halfCanvasWidth = uiBindings.LandmarkRoot.rect.width * 0.5f;
+            float halfCanvasHeight = uiBindings.LandmarkRoot.rect.height * 0.5f;
 
             // 랜드마크는 고도 정보가 없어 전부 "지평선" 높이에 있다고 가정한다.
             // 카메라를 위/아래로 기울인 만큼(피치) 지평선이 화면에서 반대로 움직이는 것과 같은 효과를 준다.
@@ -343,8 +361,7 @@ namespace PixelRoad.AR
             if (!returningToMap && noLandmarksTimer >= NoLandmarksTimeoutSeconds)
             {
                 returningToMap = true;
-                ARHandoff.Clear();
-                SceneManager.LoadScene(MapSceneName);
+                ReturnToMapScene();
             }
         }
 

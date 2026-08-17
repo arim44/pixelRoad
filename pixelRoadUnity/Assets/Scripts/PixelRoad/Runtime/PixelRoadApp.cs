@@ -25,6 +25,7 @@ namespace PixelRoad.Runtime
         /// <summary>설정 에셋이 없을 때 쓰는 예전 JSON 경로.</summary>
         private const string ConfigResourcePath = "PixelRoad/map_config";
         private const string MapSceneName = "MapScene";
+        private const float ARLoadingFadeOutSeconds = 0.25f;
 
         /// <summary>
         /// 지도 씬에 배치된 UI 프리팹 인스턴스의 참조.
@@ -109,6 +110,13 @@ namespace PixelRoad.Runtime
             view.GnbTabSelected += HandleGnbTabSelected;
             view.QuitConfirmed += QuitApp;
             view.ARRequested += OnARRequested;
+
+            // ARScene에서 뒤로가기로 돌아온 경우, 지도 UI가 다 세워진 지금 그 로딩 화면을 이어받아
+            // 페이드아웃시킨다. ARScene에서 미리 끄면 씬이 바뀌기 전에 AR 화면이 잠깐 다시 보여
+            // 깜빡이는 것처럼 보이는 문제가 있었다(AR 진입 때와 같은 이유).
+            ARHandoff.PendingLoadingScreen?.FadeOutAndDestroy(ARLoadingFadeOutSeconds);
+            ARHandoff.PendingLoadingScreen = null;
+
             for (int i = 0; i < spots.Count; i++)
             {
                 view.AddSpotMarker(spots[i], SelectSpot);

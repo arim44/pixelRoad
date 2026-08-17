@@ -11,6 +11,7 @@ namespace PixelRoad.AR
     public static class ARSceneLauncher
     {
         private const string ARSceneName = "ARScene";
+        private const string MapSceneName = "MapScene";
         private const string ConfigResourcePath = "PixelRoad/ar_config";
         private const float SettleSeconds = 0.15f;
 
@@ -44,23 +45,55 @@ namespace PixelRoad.AR
 
             AsyncOperation operation = SceneManager.LoadSceneAsync(ARSceneName);
             operation.allowSceneActivation = false;
+            yield return DriveSceneLoad(operation, loading, captureCompass: true);
+
+            // 로딩 화면은 DontDestroyOnLoad라 씬이 바뀌어도 계속 떠 있다. ARSceneController가 자기 UI를
+            // 다 세운 뒤 이어받아 페이드아웃시킨다 - 여기서 미리 끄면 전환 도중 지도 화면이 다시 보인다.
+            ARHandoff.PendingLoadingScreen = loading;
+            operation.allowSceneActivation = true;
+        }
+
+        /// <summary>ARScene 뒤로가기(또는 근처 랜드마크 없음 타임아웃)로 MapScene에 돌아갈 때 쓴다.</summary>
+        public static IEnumerator LoadMapScene()
+        {
+            LoadingScreenView loading = LoadingScreenView.Create();
+
+            AsyncOperation operation = SceneManager.LoadSceneAsync(MapSceneName);
+            operation.allowSceneActivation = false;
+            yield return DriveSceneLoad(operation, loading, captureCompass: false);
+
+            // PixelRoadApp이 자기 UI를 다 세운 뒤 이어받아 페이드아웃시킨다(LoadARScene과 동일한 이유).
+            ARHandoff.PendingLoadingScreen = loading;
+            operation.allowSceneActivation = true;
+        }
+
+        /// <summary>씬 로드 진행률을 로딩 화면에 반영하며 90%까지, 그 뒤 SettleSeconds만큼 더 기다린다.</summary>
+        private static IEnumerator DriveSceneLoad(AsyncOperation operation, LoadingScreenView loading, bool captureCompass)
+        {
             while (operation.progress < 0.9f)
             {
-                loading.SetProgress(operation.progress / 0.9f);
-                CaptureCompassHeading();
+                loading?.SetProgress(operation.progress / 0.9f);
+                if (captureCompass)
+                {
+                    CaptureCompassHeading();
+                }
+
                 yield return null;
             }
 
-            loading.SetProgress(1f);
             float settleElapsed = 0f;
             while (settleElapsed < SettleSeconds)
             {
-                CaptureCompassHeading();
+                // 목표는 이미 100%지만, 표시 진행률이 서서히 따라가는 동안 계속 불러 줘야 애니메이션이 이어진다.
+                loading?.SetProgress(1f);
+                if (captureCompass)
+                {
+                    CaptureCompassHeading();
+                }
+
                 settleElapsed += Time.deltaTime;
                 yield return null;
             }
-
-            operation.allowSceneActivation = true;
         }
 
         private static void CaptureCompassHeading()
