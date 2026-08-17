@@ -13,7 +13,10 @@ namespace PixelRoad.AR
         private const string ARSceneName = "ARScene";
         private const string MapSceneName = "MapScene";
         private const string ConfigResourcePath = "PixelRoad/ar_config";
-        private const float SettleSeconds = 0.15f;
+
+        // LoadingScreenView의 페이드인(FadeInSeconds)보다 짧으면 안 된다 - 씬 전환이 더 빨리 끝나면
+        // 페이드인이 채 끝나기 전에 페이드아웃이 시작되며 방향이 뒤집혀 화면이 깜빡이는 것처럼 보인다.
+        private const float SettleSeconds = 0.3f;
 
         /// <summary>Resources/PixelRoad/ar_config.json 을 읽는다. 없거나 잘못돼도 기본값으로 안전하게 동작한다.</summary>
         public static ARConfig LoadConfig()

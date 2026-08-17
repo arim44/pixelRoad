@@ -63,11 +63,16 @@ namespace PixelRoad.AR
             return view;
         }
 
+        // 프레임당 반영폭 상한 - 씬 로드 전후로 프레임이 튀면 한 스텝에 목표까지 뛰어버려 애니메이션
+        // 없이 값이 바뀐 것처럼 보일 수 있어, FadeRunner와 같은 이유로 상한을 둔다.
+        private const float MaxProgressStepSeconds = 0.05f;
+
         /// <summary>목표 진행률(0~1)을 준다. 실제로 보여주는 진행률은 이 목표를 향해 서서히 따라간다.</summary>
         public void SetProgress(float targetProgress01)
         {
             float target = Mathf.Clamp01(targetProgress01);
-            displayedProgress = Mathf.MoveTowards(displayedProgress, target, ProgressFollowSpeed * Time.unscaledDeltaTime);
+            float step = ProgressFollowSpeed * Mathf.Min(Time.unscaledDeltaTime, MaxProgressStepSeconds);
+            displayedProgress = Mathf.MoveTowards(displayedProgress, target, step);
             bindings.ProgressFill.fillAmount = displayedProgress;
 
             // 문자열 생성은 정수 퍼센트가 바뀔 때만 한다.
