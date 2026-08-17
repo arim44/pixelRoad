@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace PixelRoad.Data
 {
     /// <summary>
@@ -11,7 +13,19 @@ namespace PixelRoad.Data
         /// <summary>지도에서 선택 중인 랜드마크. 선택이 없으면 null.</summary>
         public static SpotRuntimeState SelectedSpot { get; set; }
 
-        /// <summary>선택 상태를 비운다. 지도 화면을 새로 세울 때 호출한다.</summary>
+        /// <summary>
+        /// 도메인 리로드를 끄고(Enter Play Mode Options) 에디터에서 Stop 후 다시 Play 할 때
+        /// 이전 세션의 값이 남지 않도록 앱 프로세스당 한 번만 비운다.
+        /// MapScene은 ARScene 왕복 등으로 플레이 중에도 여러 번 다시 로드되는데, 그때마다 비우면
+        /// AR에서 고른 선택 상태가 지도로 돌아오자마자 사라져 버리므로 씬 로드 시점이 아니라 여기서 한 번만 한다.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ClearOnProcessStart()
+        {
+            SelectedSpot = null;
+        }
+
+        /// <summary>선택 상태를 비운다.</summary>
         public static void Clear()
         {
             SelectedSpot = null;

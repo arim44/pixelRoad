@@ -145,8 +145,8 @@ namespace PixelRoad.UI
             codex = uiBindings.CodexView;
             mapInput = uiBindings.MapInput;
 
-            // 선택 상태는 GlobalValue에 있다. 도메인 리로드를 끄고 플레이할 때 이전 판의 값이 남지 않도록 비운다.
-            GlobalValue.Clear();
+            // 선택 상태는 GlobalValue에 있다. 여기서 매번 비우면 ARScene에서 돌아왔을 때
+            // 방금 고른 선택이 곧바로 지워지므로, 초기화는 GlobalValue 쪽에서 앱 프로세스당 한 번만 한다.
 
             codex.Initialize();
             quitDialog.Initialize(HideQuitDialog, () => QuitConfirmed?.Invoke());
@@ -198,6 +198,13 @@ namespace PixelRoad.UI
 
             ReportLiveMapAvailability(liveMapUnavailableReason);
             Canvas.ForceUpdateCanvases();
+
+            // ARScene에서 돌아왔을 때처럼 GlobalValue.SelectedSpot이 이미 채워져 있으면 배너를 그 상태로 복원한다.
+            // 위치는 아직 없을 수 있어 SelectSpot이 알아서 "확인하는 중…"으로 보여주고, 첫 위치 갱신 때 채워진다.
+            if (GlobalValue.SelectedSpot != null)
+            {
+                SelectSpot(GlobalValue.SelectedSpot, default);
+            }
         }
 
         /// <summary>지도 첫 타일이 이미 그려졌는지.</summary>

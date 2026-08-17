@@ -32,7 +32,7 @@ namespace PixelRoad.AR
             GeoLocation currentLocation)
         {
             List<ARLandmarkSnapshot> snapshot = BuildSnapshot(nearbySpots);
-            ARHandoff.Prepare(snapshot, currentLocation);
+            ARHandoff.Prepare(snapshot, nearbySpots, currentLocation);
 
             LoadingScreenView loading = LoadingScreenView.Create();
 

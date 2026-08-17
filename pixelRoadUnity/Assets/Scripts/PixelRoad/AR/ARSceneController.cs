@@ -50,6 +50,7 @@ namespace PixelRoad.AR
             view = new AROverlayView(overlayRoot, config);
             view.CaptureRequested += OnCaptureRequested;
             view.ThumbnailClicked += OnThumbnailClicked;
+            view.LandmarkClicked += OnLandmarkClicked;
             RestoreLastCapture();
             currentLocation = ARHandoff.InitialLocation;
 
@@ -106,6 +107,7 @@ namespace PixelRoad.AR
             {
                 view.CaptureRequested -= OnCaptureRequested;
                 view.ThumbnailClicked -= OnThumbnailClicked;
+                view.LandmarkClicked -= OnLandmarkClicked;
             }
 
             locationProvider?.Stop();
@@ -136,6 +138,36 @@ namespace PixelRoad.AR
             {
                 ShowToast(string.IsNullOrEmpty(errorMessage) ? "사진을 열 수 없습니다." : "사진을 열 수 없습니다: " + errorMessage);
             }
+        }
+
+        /// <summary>
+        /// 랜드마크 핀을 누르면 GlobalValue.SelectedSpot에 담아 집중 모드(다른 핀은 숨김)로 들어간다.
+        /// 이미 선택된 핀을 다시 누르면 선택을 풀어 집중 모드를 빠져나온다.
+        /// GlobalValue는 지도 화면과 공유하는 전역 선택 상태라, 지도로 돌아가면 그 랜드마크가 그대로 선택돼 있다.
+        /// </summary>
+        private void OnLandmarkClicked(string landmarkId)
+        {
+            if (GlobalValue.SelectedSpot != null && GlobalValue.SelectedSpot.Definition.Id == landmarkId)
+            {
+                GlobalValue.SelectedSpot = null;
+                return;
+            }
+
+            GlobalValue.SelectedSpot = FindSpotById(landmarkId);
+        }
+
+        private static SpotRuntimeState FindSpotById(string landmarkId)
+        {
+            IReadOnlyList<SpotRuntimeState> spots = ARHandoff.Spots;
+            for (int i = 0; i < spots.Count; i++)
+            {
+                if (spots[i].Definition.Id == landmarkId)
+                {
+                    return spots[i];
+                }
+            }
+
+            return null;
         }
 
         private void ShowToast(string message)
@@ -229,10 +261,20 @@ namespace PixelRoad.AR
             int rightEdgeCount = 0;
             int visibleCount = 0;
 
+            // 집중 모드: 랜드마크 핀을 눌러 GlobalValue.SelectedSpot이 채워져 있으면 그 랜드마크만 보여주고
+            // 나머지는 숨긴다.
+            string focusedLandmarkId = GlobalValue.SelectedSpot?.Definition.Id;
+
             IReadOnlyList<ARLandmarkSnapshot> landmarks = ARHandoff.Landmarks;
             for (int i = 0; i < landmarks.Count; i++)
             {
                 ARLandmarkSnapshot landmark = landmarks[i];
+                if (focusedLandmarkId != null && landmark.Id != focusedLandmarkId)
+                {
+                    view.Hide(landmark.Id);
+                    continue;
+                }
+
                 double distance = GeoProjection.DistanceMeters(
                     currentLocation.Latitude,
                     currentLocation.Longitude,

@@ -45,6 +45,9 @@ namespace PixelRoad.AR
         /// <summary>썸네일을 눌렀을 때 발생한다. 갤러리 앱을 여는 건 플랫폼 API가 필요해 ARSceneController가 처리한다.</summary>
         public event Action ThumbnailClicked;
 
+        /// <summary>랜드마크 핀(아이콘)을 눌렀을 때 그 랜드마크의 id와 함께 발생한다.</summary>
+        public event Action<string> LandmarkClicked;
+
         public AROverlayView(RectTransform overlayRoot, ARConfig config)
         {
             this.overlayRoot = overlayRoot;
@@ -204,7 +207,7 @@ namespace PixelRoad.AR
             Sprite normalSprite = ResolveIconSprite(landmark);
 
             Image icon = ARUiFactory.CreateObject("Icon", root).AddComponent<Image>();
-            icon.raycastTarget = false;
+            icon.raycastTarget = true;
             icon.preserveAspect = true;
             icon.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
             icon.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
@@ -212,6 +215,11 @@ namespace PixelRoad.AR
             icon.rectTransform.sizeDelta = new Vector2(config.iconPixelSize, config.iconPixelSize);
             icon.sprite = normalSprite;
             icon.color = landmark.IsUnlocked ? (Color)UnlockedIconTint : (Color)LockedIconTint;
+
+            string landmarkId = landmark.Id;
+            Button iconButton = icon.gameObject.AddComponent<Button>();
+            iconButton.targetGraphic = icon;
+            iconButton.onClick.AddListener(() => LandmarkClicked?.Invoke(landmarkId));
 
             TMP_Text label = ARUiFactory.CreateText(
                 "Distance",

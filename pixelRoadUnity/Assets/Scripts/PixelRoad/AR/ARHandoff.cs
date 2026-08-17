@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PixelRoad.Data;
 using PixelRoad.Location;
 
 namespace PixelRoad.AR
@@ -11,14 +12,26 @@ namespace PixelRoad.AR
     public static class ARHandoff
     {
         public static IReadOnlyList<ARLandmarkSnapshot> Landmarks { get; private set; } = Array.Empty<ARLandmarkSnapshot>();
+
+        /// <summary>
+        /// Landmarks와 같은 랜드마크들의 실제 SpotRuntimeState 참조.
+        /// ARLandmarkSnapshot은 화면 표시용 경량 DTO라 GlobalValue.SelectedSpot에 쓸 실제 인스턴스가 없어,
+        /// AR에서 핀을 클릭했을 때 이 목록에서 id로 찾아 GlobalValue.SelectedSpot에 채워 넣는다.
+        /// </summary>
+        public static IReadOnlyList<SpotRuntimeState> Spots { get; private set; } = Array.Empty<SpotRuntimeState>();
+
         public static GeoLocation InitialLocation { get; private set; }
         public static bool HasData { get; private set; }
         public static float InitialHeadingDegrees { get; private set; }
         public static bool HasInitialHeading { get; private set; }
 
-        public static void Prepare(IReadOnlyList<ARLandmarkSnapshot> landmarks, GeoLocation initialLocation)
+        public static void Prepare(
+            IReadOnlyList<ARLandmarkSnapshot> landmarks,
+            IReadOnlyList<SpotRuntimeState> spots,
+            GeoLocation initialLocation)
         {
             Landmarks = landmarks ?? Array.Empty<ARLandmarkSnapshot>();
+            Spots = spots ?? Array.Empty<SpotRuntimeState>();
             InitialLocation = initialLocation;
             HasData = true;
         }
@@ -37,6 +50,7 @@ namespace PixelRoad.AR
         public static void Clear()
         {
             Landmarks = Array.Empty<ARLandmarkSnapshot>();
+            Spots = Array.Empty<SpotRuntimeState>();
             HasData = false;
             HasInitialHeading = false;
         }
