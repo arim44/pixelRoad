@@ -22,6 +22,8 @@ namespace PixelRoad.AR
         private const float ThumbnailHeight = 220f;
         private const float ThumbnailMargin = 16f;
         private const float ThumbnailFrameBorder = 6f;
+        private const float FocusDirectionArrowSize = 96f;
+        private const float FocusDirectionArrowVerticalOffset = 180f;
 
         private static readonly Color32 UnlockedIconTint = Color.white;
         private static readonly Color32 LockedIconTint = new Color32(124, 120, 112, 235);
@@ -38,6 +40,7 @@ namespace PixelRoad.AR
         private readonly Button captureButton;
         private readonly Button backButton;
         private readonly Image thumbnailImage;
+        private readonly Image focusDirectionArrow;
 
         /// <summary>촬영 버튼이 눌렸을 때 발생한다. 실제 캡처·저장은 코루틴이 필요해 ARSceneController가 처리한다.</summary>
         public event Action CaptureRequested;
@@ -60,6 +63,7 @@ namespace PixelRoad.AR
             toastText = CreateToastText();
             captureButton = CreateCaptureButton();
             thumbnailImage = CreateCaptureThumbnail();
+            focusDirectionArrow = CreateFocusDirectionArrow();
         }
 
         /// <summary>화면 위쪽에 짧은 안내 문구를 잠깐 보여준다(예: 갤러리 열기 실패). 자동으로 사라지지는 않고, 다시 호출하면 내용만 갱신된다.</summary>
@@ -189,6 +193,22 @@ namespace PixelRoad.AR
             {
                 binding.Root.gameObject.SetActive(false);
             }
+        }
+
+        /// <summary>
+        /// 집중 모드일 때 화면 중앙보다 살짝 아래에서 선택된 랜드마크 방향을 가리키는 나침반 화살표를 보여준다.
+        /// deltaDegrees는 카메라 정면 기준 랜드마크 방위각(오른쪽이 양수)으로, 화면 안/밖 여부와 상관없이
+        /// 항상 실제 각도로 회전해 자연스럽게 그 방향을 가리킨다.
+        /// </summary>
+        public void ShowFocusDirection(float deltaDegrees)
+        {
+            focusDirectionArrow.gameObject.SetActive(true);
+            focusDirectionArrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, -deltaDegrees);
+        }
+
+        public void HideFocusDirection()
+        {
+            focusDirectionArrow.gameObject.SetActive(false);
         }
 
         private LandmarkBinding GetOrCreateBinding(ARLandmarkSnapshot landmark)
@@ -326,6 +346,26 @@ namespace PixelRoad.AR
 
             frame.SetActive(false);
             return photo;
+        }
+
+        /// <summary>화면 중앙보다 살짝 아래, 집중 모드 나침반 화살표. 평상시엔 숨겨 둔다.</summary>
+        private Image CreateFocusDirectionArrow()
+        {
+            GameObject arrow = ARUiFactory.CreateObject("FocusDirectionArrow", overlayRoot);
+            RectTransform rect = arrow.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(FocusDirectionArrowSize, FocusDirectionArrowSize);
+            rect.anchoredPosition = new Vector2(0f, -FocusDirectionArrowVerticalOffset);
+
+            Image image = arrow.AddComponent<Image>();
+            image.sprite = arrowSprite;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+
+            arrow.SetActive(false);
+            return image;
         }
 
         private TMP_Text CreateStatusText()

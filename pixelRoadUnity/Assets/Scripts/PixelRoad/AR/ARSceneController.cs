@@ -262,8 +262,9 @@ namespace PixelRoad.AR
             int visibleCount = 0;
 
             // 집중 모드: 랜드마크 핀을 눌러 GlobalValue.SelectedSpot이 채워져 있으면 그 랜드마크만 보여주고
-            // 나머지는 숨긴다.
+            // 나머지는 숨긴다. 화면 중앙 아래 나침반 화살표도 이때만 그 방향을 가리키며 보인다.
             string focusedLandmarkId = GlobalValue.SelectedSpot?.Definition.Id;
+            bool focusDirectionShown = false;
 
             IReadOnlyList<ARLandmarkSnapshot> landmarks = ARHandoff.Landmarks;
             for (int i = 0; i < landmarks.Count; i++)
@@ -296,6 +297,12 @@ namespace PixelRoad.AR
                     landmark.Longitude);
                 float delta = ARCompassMath.NormalizeAngle((float)bearing - smoothedHeading);
 
+                if (focusedLandmarkId != null)
+                {
+                    view.ShowFocusDirection(delta);
+                    focusDirectionShown = true;
+                }
+
                 if (Mathf.Abs(delta) <= horizontalFov * 0.5f)
                 {
                     float screenX = ARCompassMath.DeltaToScreenOffset(delta, horizontalFov, halfCanvasWidth);
@@ -307,6 +314,11 @@ namespace PixelRoad.AR
                     int slotIndex = rightSide ? rightEdgeCount++ : leftEdgeCount++;
                     view.ShowAtEdge(landmark, rightSide, screenY, distance, slotIndex);
                 }
+            }
+
+            if (!focusDirectionShown)
+            {
+                view.HideFocusDirection();
             }
 
             HandleNoLandmarksState(visibleCount);
