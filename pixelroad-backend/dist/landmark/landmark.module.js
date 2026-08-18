@@ -14,7 +14,8 @@ let LandmarkModule = class LandmarkModule {
 exports.LandmarkModule = LandmarkModule;
 exports.LandmarkModule = LandmarkModule = __decorate([
     (0, common_1.Module)({
-        providers: [landmark_service_1.LandmarkService]
+        providers: [landmark_service_1.LandmarkService],
+        exports: [landmark_service_1.LandmarkService],
     })
 ], LandmarkModule);
 //# sourceMappingURL=landmark.module.js.map

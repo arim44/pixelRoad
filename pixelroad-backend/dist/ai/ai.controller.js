@@ -15,67 +15,33 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiController = void 0;
 const common_1 = require("@nestjs/common");
 const ai_service_1 = require("./ai.service");
-const create_ai_dto_1 = require("./dto/create-ai.dto");
-const update_ai_dto_1 = require("./dto/update-ai.dto");
+const swagger_1 = require("@nestjs/swagger");
+const aiReport_dto_1 = require("./dto/aiReport.dto");
 let AiController = class AiController {
     aiService;
     constructor(aiService) {
         this.aiService = aiService;
     }
-    create(createAiDto) {
-        return this.aiService.create(createAiDto);
-    }
-    findAll() {
-        return this.aiService.findAll();
-    }
-    findOne(id) {
-        return this.aiService.findOne(+id);
-    }
-    update(id, updateAiDto) {
-        return this.aiService.update(+id, updateAiDto);
-    }
-    remove(id) {
-        return this.aiService.remove(+id);
+    async createReport(dto) {
+        return this.aiService.createReport(dto);
     }
 };
 exports.AiController = AiController;
 __decorate([
-    (0, common_1.Post)(),
+    (0, common_1.Post)('report'),
+    (0, swagger_1.ApiOperation)({ summary: 'AI 탐험 리포트 생성',
+        description: '사용자의 방문 기록을 기반으로 AI탐험 리포트를 생성합니다'
+    }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'AI탐험리포트 분석 결과',
+        type: aiReport_dto_1.AiReportApiDto }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_ai_dto_1.CreateAiDto]),
-    __metadata("design:returntype", void 0)
-], AiController.prototype, "create", null);
-__decorate([
-    (0, common_1.Get)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], AiController.prototype, "findAll", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], AiController.prototype, "findOne", null);
-__decorate([
-    (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_ai_dto_1.UpdateAiDto]),
-    __metadata("design:returntype", void 0)
-], AiController.prototype, "update", null);
-__decorate([
-    (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], AiController.prototype, "remove", null);
+    __metadata("design:paramtypes", [aiReport_dto_1.CreateReportDto]),
+    __metadata("design:returntype", Promise)
+], AiController.prototype, "createReport", null);
 exports.AiController = AiController = __decorate([
-    (0, common_1.Controller)('ai'),
+    (0, swagger_1.ApiTags)('AI 탐험 리포트'),
+    (0, common_1.Controller)('api/ai'),
     __metadata("design:paramtypes", [ai_service_1.AiService])
 ], AiController);
 //# sourceMappingURL=ai.controller.js.map

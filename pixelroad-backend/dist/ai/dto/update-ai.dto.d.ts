@@ -1,5 +1,4 @@
-import { CreateAiDto } from './create-ai.dto';
-declare const UpdateAiDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreateAiDto>>;
+declare const UpdateAiDto_base: import("@nestjs/mapped-types").MappedType<Partial<unknown>>;
 export declare class UpdateAiDto extends UpdateAiDto_base {
 }
 export {};

@@ -8,7 +8,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LandmarkService = void 0;
 const common_1 = require("@nestjs/common");
+const promises_1 = require("fs/promises");
+const path_1 = require("path");
 let LandmarkService = class LandmarkService {
+    filePath = (0, path_1.join)(process.cwd(), 'data', 'landmarks.json');
+    async getAllLandmarks() {
+        const data = await (0, promises_1.readFile)(this.filePath, 'utf-8');
+        return JSON.parse(data);
+    }
+    async getLandmarkById(id) {
+        const landmarks = await this.getAllLandmarks();
+        return landmarks.find((landmark) => landmark.id === id);
+    }
 };
 exports.LandmarkService = LandmarkService;
 exports.LandmarkService = LandmarkService = __decorate([
