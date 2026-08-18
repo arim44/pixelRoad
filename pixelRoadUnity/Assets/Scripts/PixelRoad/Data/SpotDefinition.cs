@@ -19,6 +19,14 @@ namespace PixelRoad.Data
         public double Latitude { get; private set; }
         public double Longitude { get; private set; }
         public float RadiusMeters { get; private set; }
+        /// <summary>도감 이미지를 찾을 때 쓰는 키(landmarks.json의 thumbnail).</summary>
+        public string ThumbnailKey { get; private set; }
+
+        /// <summary>
+        /// 지도·AR 마커 아이콘을 찾을 때 쓰는 키. 데이터를 읽는 시점에 <see cref="Category"/>로
+        /// 한 번 해석해 두므로(그 이름의 PNG가 있으면 category, 없으면 기본 아이콘 이름)
+        /// 이후에는 그대로 읽기만 하면 되고 지도와 AR이 같은 그림을 쓴다.
+        /// </summary>
         public string IconKey { get; private set; }
         public string History { get; private set; }
         public string[] Tags { get; private set; }
@@ -42,7 +50,8 @@ namespace PixelRoad.Data
             string shortDescription,
             string history,
             string[] tags,
-            string view360Image)
+            string view360Image,
+            string iconKey)
         {
             LandmarkId = landmarkId;
             Id = landmarkId.ToString(CultureInfo.InvariantCulture);
@@ -54,10 +63,11 @@ namespace PixelRoad.Data
             Latitude = latitude;
             Longitude = longitude;
             RadiusMeters = radiusMeters;
-            IconKey = thumbnail ?? string.Empty;
+            ThumbnailKey = thumbnail ?? string.Empty;
             History = history ?? string.Empty;
             Tags = tags ?? Array.Empty<string>();
             View360Image = view360Image;
+            IconKey = string.IsNullOrWhiteSpace(iconKey) ? Category : iconKey.Trim();
             InitiallyUnlocked = false;
         }
 
@@ -72,7 +82,7 @@ namespace PixelRoad.Data
             double latitude,
             double longitude,
             float radiusMeters,
-            string iconKey,
+            string thumbnail,
             bool initiallyUnlocked)
         {
             int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out int landmarkId);
@@ -86,10 +96,11 @@ namespace PixelRoad.Data
             Latitude = latitude;
             Longitude = longitude;
             RadiusMeters = radiusMeters;
-            IconKey = iconKey ?? string.Empty;
+            ThumbnailKey = thumbnail ?? string.Empty;
             History = string.Empty;
             Tags = Array.Empty<string>();
             View360Image = null;
+            IconKey = Category;
             InitiallyUnlocked = initiallyUnlocked;
         }
     }

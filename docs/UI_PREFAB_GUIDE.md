@@ -141,10 +141,13 @@ Loading.unity                 MapScene.unity
 | `station` | 역 랜드마크 마커 |
 | `user` | 현재 위치 마커(64×64 파란 원) |
 | `recenter` | 우하단 현재 위치 재추적 버튼 |
-| `default` | 아이콘을 못 찾은 랜드마크의 기본 마커 |
+| `default` | 카테고리 아이콘을 못 찾은 랜드마크의 기본 마커 |
+| `placeholder` | 도감에서 썸네일이 없거나 잠긴 랜드마크에 쓰는 대체 이미지 |
 | `solid` | 단색 흰색 8×8. 로딩 진행률 바처럼 `Image.Type.Filled`를 쓰는 곳에 물린다. 스프라이트가 없으면 Unity가 `fillAmount`를 무시하고 사각형 전체를 그린다 |
 
-마커 아이콘은 `landmarks.json`의 `thumbnail` → `category` → `map_config.defaultSpotIconName` 순으로 찾는다. 셋 다 없으면 프리팹에 지정된 스프라이트가 그대로 남는다.
+지도 마커 아이콘은 `landmarks.json`의 `category` → 영문 별칭(`역사`→`history` 등) → `map_config.defaultSpotIconName` 순으로 찾는다. 셋 다 없으면 프리팹에 지정된 스프라이트가 그대로 남는다.
+
+도감 카드·상세의 이미지는 마커와 별개로 `landmarks.json`의 `thumbnail`만 따른다. 썸네일 파일이 없거나 아직 해금하지 않은 랜드마크는 `map_config.placeholderThumbnailName`(기본 `placeholder`) 이미지로 대체된다.
 
 `default.png`와 `solid.png`는 예전 프리팹 빌더가 한 번 구워 둔 에셋이다. 지금은 생성 코드가 없으니 지우지 말고, 교체할 때는 같은 이름으로 덮어쓴다.
 

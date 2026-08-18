@@ -49,7 +49,8 @@ namespace PixelRoad.AR
         {
             this.overlayRoot = overlayRoot;
             this.config = config;
-            iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName);
+            // AR은 도감 썸네일을 그리지 않으므로 대체 이미지 이름은 비워 둔다.
+            iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName, string.Empty);
             arrowSprite = ARUiFactory.CreateTriangleSprite(config.edgeArrowPixelSize, TextColor);
 
             backButton = CreateBackButton();
@@ -235,7 +236,8 @@ namespace PixelRoad.AR
 
         private Sprite ResolveIconSprite(ARLandmarkSnapshot landmark)
         {
-            Sprite sprite = iconLibrary.Resolve(landmark.IconKey, landmark.Category);
+            // 지도와 같은 키를 그대로 쓴다. 같은 category면 지도와 AR에 같은 아이콘이 뜬다.
+            Sprite sprite = iconLibrary.Load(landmark.IconKey);
             return sprite != null
                 ? sprite
                 : ARUiFactory.CreateDiamondSprite(config.iconPixelSize, FallbackIconColor);

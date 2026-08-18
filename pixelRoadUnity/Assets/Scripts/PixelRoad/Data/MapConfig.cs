@@ -64,10 +64,16 @@ namespace PixelRoad.Data
         public string spotIconResourceFolder = "PixelRoad/Icons";
 
         /// <summary>
-        /// landmarks.json의 thumbnail·category 이름으로 아이콘을 못 찾았을 때 마지막으로 시도할 아이콘 이름.
+        /// landmarks.json의 category 이름으로 지도 마커 아이콘을 못 찾았을 때 마지막으로 시도할 아이콘 이름.
         /// 이것도 없으면 코드로 생성한 도형 마커를 쓴다.
         /// </summary>
         public string defaultSpotIconName = "default";
+
+        /// <summary>
+        /// 도감에서 thumbnail 이미지가 없거나 아직 해금하지 않은 랜드마크에 쓸 대체 이미지 이름.
+        /// 지도 마커에는 쓰이지 않는다.
+        /// </summary>
+        public string placeholderThumbnailName = "placeholder";
 
         /// <summary>사용자 위치 마커에 쓸 아이콘 이름. 없으면 원형 도형 마커로 대체된다.</summary>
         public string userIconName = "user";
