@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AiReportApiDto = exports.AiReportResponseDto = exports.RecommendationDto = exports.CreateReportDto = exports.VisitedLandmarkDto = void 0;
+exports.AiReportApiDto = exports.AiReportResponseDto = exports.VisitedLandmarkAiDto = exports.RecommendationDto = exports.CreateReportDto = exports.VisitedLandmarkDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
@@ -21,7 +21,6 @@ exports.VisitedLandmarkDto = VisitedLandmarkDto;
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 2, description: "랜드마크 ID" }),
     (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], VisitedLandmarkDto.prototype, "landmarkId", void 0);
 __decorate([
@@ -65,6 +64,31 @@ __decorate([
     }),
     __metadata("design:type", String)
 ], RecommendationDto.prototype, "reason", void 0);
+class VisitedLandmarkAiDto {
+    landmarkId;
+    name;
+    category;
+    visitCount;
+}
+exports.VisitedLandmarkAiDto = VisitedLandmarkAiDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 24, description: "추천 랜드마크 ID" }),
+    __metadata("design:type", Number)
+], VisitedLandmarkAiDto.prototype, "landmarkId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: "창덕궁", description: "추천 랜드마크 이름" }),
+    __metadata("design:type", String)
+], VisitedLandmarkAiDto.prototype, "name", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: "역사", description: "추천 랜드마크 카테고리" }),
+    __metadata("design:type", String)
+], VisitedLandmarkAiDto.prototype, "category", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 2, description: "총 방문 횟수" }),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], VisitedLandmarkAiDto.prototype, "visitCount", void 0);
 class AiReportResponseDto {
     analysis;
     recommendation;

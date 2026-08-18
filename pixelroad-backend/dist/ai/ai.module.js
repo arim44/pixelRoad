@@ -12,6 +12,8 @@ const ai_service_1 = require("./ai.service");
 const ai_controller_1 = require("./ai.controller");
 const ai_report_service_1 = require("./ai-report.service");
 const landmark_module_1 = require("../landmark/landmark.module");
+const landmark_recommendation_service_1 = require("./landmark-recommendation.service");
+const ai_client_service_1 = require("./ai-client.service");
 let AiModule = class AiModule {
 };
 exports.AiModule = AiModule;
@@ -19,7 +21,9 @@ exports.AiModule = AiModule = __decorate([
     (0, common_1.Module)({
         imports: [landmark_module_1.LandmarkModule],
         controllers: [ai_controller_1.AiController],
-        providers: [ai_service_1.AiService, ai_report_service_1.AiReportService],
+        providers: [ai_service_1.AiService, ai_report_service_1.AiReportService, landmark_recommendation_service_1.LandmarkRecommendationService,
+            ai_client_service_1.AiClientService,
+        ],
     })
 ], AiModule);
 //# sourceMappingURL=ai.module.js.map

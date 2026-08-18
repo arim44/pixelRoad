@@ -10,6 +10,12 @@ export declare class RecommendationDto {
     name: string;
     reason: string;
 }
+export declare class VisitedLandmarkAiDto {
+    landmarkId: number;
+    name: string;
+    category: string;
+    visitCount: number;
+}
 export declare class AiReportResponseDto {
     analysis: string;
     recommendation: RecommendationDto;

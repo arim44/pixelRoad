@@ -12,30 +12,38 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiService = void 0;
 const common_1 = require("@nestjs/common");
 const ai_report_service_1 = require("./ai-report.service");
-const landmark_service_1 = require("../landmark/landmark.service");
+const ai_client_service_1 = require("./ai-client.service");
 let AiService = class AiService {
     aireportService;
-    landmarkService;
-    constructor(aireportService, landmarkService) {
+    aiClientService;
+    constructor(aireportService, aiClientService) {
         this.aireportService = aireportService;
-        this.landmarkService = landmarkService;
+        this.aiClientService = aiClientService;
     }
     async createReport(dto) {
-        const result = await this.aireportService.analysis(dto.visitedLandmarks);
-        return { success: true, data: {
-                analysis: "현재까지 방문한 랜드마크를 분석하고 있습니다.",
-                recommendation: {
-                    landmarkId: result[0]?.id ?? 0,
-                    name: result[0]?.name ?? '',
-                    reason: "방문 기록을 기반으로 추천장소를 준비하고 있습니다.",
+        const result = await this.aireportService.getReportData(dto.visitedLandmarks);
+        const aiResult = await this.aiClientService.generateReport(result.prompt);
+        return {
+            success: true,
+            data: {
+                analysis: aiResult.analysis,
+                recommendation: result.recommendation ? {
+                    landmarkId: result.recommendation?.id ?? 0,
+                    name: result.recommendation?.name ?? '',
+                    reason: aiResult.reason,
+                } : {
+                    landmarkId: 0,
+                    name: "",
+                    reason: "현재 추천 가능한 랜드마크가 없습니다."
                 }
-            } };
+            }
+        };
     }
 };
 exports.AiService = AiService;
 exports.AiService = AiService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [ai_report_service_1.AiReportService,
-        landmark_service_1.LandmarkService])
+        ai_client_service_1.AiClientService])
 ], AiService);
 //# sourceMappingURL=ai.service.js.map

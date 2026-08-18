@@ -12,25 +12,49 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiReportService = void 0;
 const common_1 = require("@nestjs/common");
 const landmark_service_1 = require("../landmark/landmark.service");
+const landmark_recommendation_service_1 = require("./landmark-recommendation.service");
+const ai_report_prompt_constant_1 = require("./constants/ai-report-prompt.constant");
 let AiReportService = class AiReportService {
     landmarkService;
-    constructor(landmarkService) {
+    recommendationService;
+    constructor(landmarkService, recommendationService) {
         this.landmarkService = landmarkService;
+        this.recommendationService = recommendationService;
     }
-    async analysis(visitedLandmarks) {
-        const landmarks = [];
+    async getReportData(visitedLandmarks) {
+        const visited = [];
         for (const visitedLandmark of visitedLandmarks) {
             const landmark = await this.landmarkService.getLandmarkById(visitedLandmark.landmarkId);
             if (landmark) {
-                landmarks.push(landmark);
+                visited.push({
+                    landmarkId: landmark.id,
+                    name: landmark.name,
+                    category: landmark.category,
+                    visitCount: visitedLandmark.visitCount,
+                });
             }
         }
-        return landmarks;
+        const allLandmarks = await this.landmarkService.getAllLandmarks();
+        const recommendation = this.recommendationService.selectRecommendation(visitedLandmarks, allLandmarks);
+        const prompt = (0, ai_report_prompt_constant_1.createAiReportPrompt)(visited, recommendation);
+        if (!recommendation) {
+            return {
+                recommendation: undefined,
+                systemPrompt: ai_report_prompt_constant_1.AI_REPORT_SYSTEM_PROMPTS.AIREPORT_ANALYSIS,
+                prompt: (0, ai_report_prompt_constant_1.createAiReportPrompt)(visited, undefined),
+            };
+        }
+        return {
+            recommendation,
+            systemPrompt: ai_report_prompt_constant_1.AI_REPORT_SYSTEM_PROMPTS.AIREPORT_ANALYSIS,
+            prompt,
+        };
     }
 };
 exports.AiReportService = AiReportService;
 exports.AiReportService = AiReportService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [landmark_service_1.LandmarkService])
+    __metadata("design:paramtypes", [landmark_service_1.LandmarkService,
+        landmark_recommendation_service_1.LandmarkRecommendationService])
 ], AiReportService);
 //# sourceMappingURL=ai-report.service.js.map

@@ -1,12 +1,12 @@
+// 요청/응답 형식
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsArray, IsInt, IsNumber, Min, ValidateNested } from "class-validator";
 
-// 요청 DTO
+// 요청 DTO 프론트에서 API로 보내는 데이터
 export class VisitedLandmarkDto {
     @ApiProperty({ example: 2, description: "랜드마크 ID" })
     @IsInt()
-    @IsNumber()
     landmarkId: number;
 
     @ApiProperty({ example: 2, description: "총 방문 횟수" })
@@ -30,7 +30,7 @@ export class CreateReportDto {
 
 // 추천 랜드마크 DTO
 export class RecommendationDto{
-     @ApiProperty({ example: 24, description: "추천 랜드마크 ID" })
+    @ApiProperty({ example: 24, description: "추천 랜드마크 ID" })
     landmarkId: number;
 
     @ApiProperty({ example: "창덕궁", description: "추천 랜드마크 이름" })
@@ -41,6 +41,24 @@ export class RecommendationDto{
         description: "추천 이유"
     })
     reason: string;
+}
+
+// AI에게 전달할 방문 랜드마크 데이터
+// 백엔드가 랜드마크 정보를 붙여 AI에게 전달하는 데이터
+export class VisitedLandmarkAiDto {
+    @ApiProperty({ example: 24, description: "추천 랜드마크 ID" })
+    landmarkId: number;
+
+    @ApiProperty({ example: "창덕궁", description: "추천 랜드마크 이름" })
+    name: string;
+
+    @ApiProperty({ example: "역사", description: "추천 랜드마크 카테고리" })
+    category: string;
+
+    @ApiProperty({ example: 2, description: "총 방문 횟수" })
+    @IsInt()
+    @Min(1)
+    visitCount: number;
 }
 
 // AI 리포트 결과 DTO

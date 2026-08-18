@@ -5,7 +5,7 @@ import { AiModule } from './ai/ai.module';
 import { LandmarkModule } from './landmark/landmark.module';
 
 @Module({
-  imports: [AiModule, LandmarkModule],
+  imports: [AiModule, LandmarkModule,],
   controllers: [AppController],
   providers: [AppService],
 })
