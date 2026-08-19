@@ -17,6 +17,9 @@ let AiClientService = class AiClientService {
     client;
     constructor() {
         const token = process.env.HF_TOKEN?.trim();
+        if (!token) {
+            throw new Error("HF_TOKEN 이 설정되지 않았습니다.");
+        }
         this.client = new inference_1.InferenceClient(token);
     }
     async generateReport(userPrompt) {
@@ -34,19 +37,88 @@ let AiClientService = class AiClientService {
                     },
                 ],
                 temperature: 0.7,
-                max_tokens: 300,
+                max_tokens: 1000,
             });
-            const content = response.choices[0]?.message?.content;
+            const message = response.choices[0]?.message;
+            if (!message) {
+                throw new common_1.InternalServerErrorException("AI 응답 메시지가 없습니다.");
+            }
+            const finishReason = response.choices[0]?.finish_reason;
+            console.log("===== AI RESPONSE =====");
+            console.dir(response, { depth: null });
+            console.log("======================");
+            console.log("AI FINISH REASON:", finishReason);
+            console.log("AI CONTENT:", message.content);
+            console.log("AI REASONING:", message.reasoning);
+            const content = typeof message.content === "string" &&
+                message.content.trim()
+                ? message.content
+                : typeof message.reasoning === "string" &&
+                    message.reasoning.trim()
+                    ? message.reasoning
+                    : null;
+            console.log("AI PARSE TARGET:", content);
             if (!content) {
+                if (finishReason === "length") {
+                    throw new common_1.InternalServerErrorException("AI 응답이 토큰 제한으로 중단되었습니다.");
+                }
                 throw new common_1.InternalServerErrorException("AI 응답이 비어있습니다.");
             }
-            const result = JSON.parse(content);
-            return result;
+            const jsonText = this.extractJson(content);
+            let parsed;
+            try {
+                parsed = JSON.parse(jsonText);
+            }
+            catch (error) {
+                console.error("AI JSON 파싱 실패");
+                console.error("원본 content:", content);
+                console.error("추출된 JSON:", jsonText);
+                throw new common_1.InternalServerErrorException("AI 응답을 JSON으로 변환할 수 없습니다.");
+            }
+            return this.validateResult(parsed);
         }
         catch (error) {
-            console.error("Gemma 호출실패", error);
-            throw error;
+            console.error("AI 호출실패", error);
+            if (error instanceof common_1.InternalServerErrorException) {
+                throw error;
+            }
+            throw new common_1.InternalServerErrorException("AI 탐험 리포트 생성에 실패했습니다.");
         }
+    }
+    extractJson(content) {
+        let text = content.trim();
+        text = text
+            .replace(/^```json\s*/i, "")
+            .replace(/^```\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+        if (text.startsWith("{") && text.endsWith("}")) {
+            return text;
+        }
+        const startIndex = text.indexOf("{");
+        const endIndex = text.lastIndexOf("}");
+        if (startIndex === -1 || endIndex === -1) {
+            throw new common_1.InternalServerErrorException("AI 응답에서 JSON을 찾을 수 없습니다.");
+        }
+        if (startIndex > endIndex) {
+            throw new common_1.InternalServerErrorException("AI 응답의 JSON 형식이 올바르지 않습니다.");
+        }
+        return text.slice(startIndex, endIndex + 1);
+    }
+    validateResult(data) {
+        if (!data || typeof data !== "object") {
+            throw new common_1.InternalServerErrorException("AI 응답 형식이 올바르지 않습니다.");
+        }
+        const result = data;
+        if (typeof result.analysis !== "string" ||
+            typeof result.reason !== "string") {
+            console.error("잘못된 AI 응답:", result);
+            throw new common_1.InternalServerErrorException("AI 응답에 analysis 또는 reason이 없습니다.");
+        }
+        return {
+            analysis: result.analysis.trim(),
+            reason: result.reason.trim(),
+        };
     }
 };
 exports.AiClientService = AiClientService;

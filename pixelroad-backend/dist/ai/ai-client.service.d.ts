@@ -6,5 +6,7 @@ export declare class AiClientService {
     private readonly client;
     constructor();
     generateReport(userPrompt: string): Promise<AiReportResult>;
+    private extractJson;
+    private validateResult;
 }
 export {};
