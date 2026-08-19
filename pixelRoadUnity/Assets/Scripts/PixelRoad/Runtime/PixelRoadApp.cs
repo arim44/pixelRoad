@@ -303,7 +303,16 @@ namespace PixelRoad.Runtime
             List<SpotDefinition> definitions;
             try
             {
-                definitions = LandmarkJsonParser.Parse(landmarksAsset.text, config.defaultUnlockRadiusMeters);
+                // 아이콘 키는 여기서 한 번만 해석해 SpotDefinition에 담아 둔다.
+                // 조회 대상이 category 종류 수뿐이라 파싱 동안만 쓰고 버려도 비용이 없다.
+                SpotIconLibrary iconKeySource = new SpotIconLibrary(
+                    config.spotIconResourceFolder,
+                    config.defaultSpotIconName,
+                    config.placeholderThumbnailName);
+                definitions = LandmarkJsonParser.Parse(
+                    landmarksAsset.text,
+                    config.defaultUnlockRadiusMeters,
+                    iconKeySource.ResolveIconKey);
             }
             catch (System.FormatException exception)
             {

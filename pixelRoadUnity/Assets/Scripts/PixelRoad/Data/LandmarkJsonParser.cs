@@ -14,8 +14,16 @@ namespace PixelRoad.Data
         /// <summary>
         /// JSON 문자열을 파싱해 검증까지 마친 랜드마크 목록을 돌려준다.
         /// 반경이 비어 있는 항목은 <paramref name="fallbackVisitRadiusMeters"/>로 채운다.
+        ///
+        /// <paramref name="iconKeyResolver"/>는 category를 실제 PNG가 있는 아이콘 키로 바꾸는 함수다
+        /// (보통 <c>SpotIconLibrary.ResolveIconKey</c>). 랜드마크당 한 번만 부르고 결과를
+        /// <see cref="SpotDefinition.IconKey"/>에 담아 두므로 지도·AR이 매번 다시 찾지 않는다.
+        /// null이면 해석 없이 category를 그대로 키로 쓴다(Resources를 건드리지 않는 테스트용).
         /// </summary>
-        public static List<SpotDefinition> Parse(string json, float fallbackVisitRadiusMeters)
+        public static List<SpotDefinition> Parse(
+            string json,
+            float fallbackVisitRadiusMeters,
+            Func<string, string> iconKeyResolver)
         {
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -71,10 +79,11 @@ namespace PixelRoad.Data
                 float visitRadius = record.visitRadius > 0f
                     ? record.visitRadius
                     : fallbackVisitRadiusMeters;
+                string category = (record.category ?? string.Empty).Trim();
                 landmarks.Add(new SpotDefinition(
                     record.id,
                     string.IsNullOrWhiteSpace(record.name) ? record.id.ToString() : record.name.Trim(),
-                    (record.category ?? string.Empty).Trim(),
+                    category,
                     (record.collectionTitle ?? string.Empty).Trim(),
                     (record.address ?? string.Empty).Trim(),
                     record.latitude,
@@ -84,7 +93,8 @@ namespace PixelRoad.Data
                     (record.shortDescription ?? string.Empty).Trim(),
                     (record.history ?? string.Empty).Trim(),
                     record.tags ?? Array.Empty<string>(),
-                    string.IsNullOrWhiteSpace(record.view360Image) ? null : record.view360Image.Trim()));
+                    string.IsNullOrWhiteSpace(record.view360Image) ? null : record.view360Image.Trim(),
+                    iconKeyResolver != null ? iconKeyResolver(category) : category));
             }
 
             return landmarks;
