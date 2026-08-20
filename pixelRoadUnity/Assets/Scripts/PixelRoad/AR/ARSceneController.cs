@@ -81,7 +81,7 @@ namespace PixelRoad.AR
 
         private void Update()
         {
-            if (!ready || view == null)
+            if (!ready || view == null || returningToMap)
             {
                 return;
             }
@@ -141,9 +141,14 @@ namespace PixelRoad.AR
             ReturnToMapScene();
         }
 
-        /// <summary>로딩 화면을 띄우며 MapScene으로 돌아간다. 뒤로가기와 근처 랜드마크 없음 타임아웃이 함께 쓴다.</summary>
+        /// <summary>
+        /// 로딩 화면을 띄우며 MapScene으로 돌아간다. 뒤로가기와 근처 랜드마크 없음 타임아웃이 함께 쓴다.
+        /// returningToMap을 여기서 먼저 세워 둬야, ARHandoff.Clear()로 랜드마크 목록이 비워진 뒤에도
+        /// (씬이 실제로 언로드되기 전까지) Update가 계속 돌면서 "근처에 랜드마크가 없다"고 오판하지 않는다.
+        /// </summary>
         private void ReturnToMapScene()
         {
+            returningToMap = true;
             ARHandoff.Clear();
             StartCoroutine(ARSceneLauncher.LoadMapScene());
         }
@@ -360,7 +365,6 @@ namespace PixelRoad.AR
 
             if (!returningToMap && noLandmarksTimer >= NoLandmarksTimeoutSeconds)
             {
-                returningToMap = true;
                 ReturnToMapScene();
             }
         }

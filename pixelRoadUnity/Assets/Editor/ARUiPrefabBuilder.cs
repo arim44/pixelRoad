@@ -248,11 +248,11 @@ namespace PixelRoad.Editor
             GameObject buttonObject = new GameObject("BackButton", typeof(RectTransform), typeof(Image), typeof(Button));
             buttonObject.transform.SetParent(parent, false);
             RectTransform rect = (RectTransform)buttonObject.transform;
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0f, 1f);
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(0f, 0f);
+            rect.pivot = new Vector2(0f, 0f);
             rect.sizeDelta = new Vector2(112f, 52f);
-            rect.anchoredPosition = new Vector2(16f, -16f);
+            rect.anchoredPosition = new Vector2(16f, 16f);
 
             Image background = buttonObject.GetComponent<Image>();
             background.color = BackButtonBackground;
