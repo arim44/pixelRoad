@@ -37,44 +37,23 @@ let AiClientService = class AiClientService {
                     },
                 ],
                 temperature: 0.7,
-                max_tokens: 1000,
+                max_tokens: 700,
             });
-            const message = response.choices[0]?.message;
-            if (!message) {
+            const choice = response.choices[0];
+            if (!choice?.message) {
                 throw new common_1.InternalServerErrorException("AI 응답 메시지가 없습니다.");
             }
-            const finishReason = response.choices[0]?.finish_reason;
-            console.log("===== AI RESPONSE =====");
-            console.dir(response, { depth: null });
-            console.log("======================");
-            console.log("AI FINISH REASON:", finishReason);
-            console.log("AI CONTENT:", message.content);
-            console.log("AI REASONING:", message.reasoning);
-            const content = typeof message.content === "string" &&
-                message.content.trim()
-                ? message.content
-                : typeof message.reasoning === "string" &&
-                    message.reasoning.trim()
-                    ? message.reasoning
-                    : null;
-            console.log("AI PARSE TARGET:", content);
-            if (!content) {
-                if (finishReason === "length") {
-                    throw new common_1.InternalServerErrorException("AI 응답이 토큰 제한으로 중단되었습니다.");
-                }
+            if (choice.finish_reason === "length") {
+                throw new common_1.InternalServerErrorException("AI 응답이 토큰 제한으로 중단되었습니다.");
+            }
+            const content = choice.message.content;
+            console.log("AI FINISH REASON:", choice.finish_reason);
+            console.log("AI CONTENT:", content);
+            if (typeof content !== "string" || !content.trim()) {
                 throw new common_1.InternalServerErrorException("AI 응답이 비어있습니다.");
             }
             const jsonText = this.extractJson(content);
-            let parsed;
-            try {
-                parsed = JSON.parse(jsonText);
-            }
-            catch (error) {
-                console.error("AI JSON 파싱 실패");
-                console.error("원본 content:", content);
-                console.error("추출된 JSON:", jsonText);
-                throw new common_1.InternalServerErrorException("AI 응답을 JSON으로 변환할 수 없습니다.");
-            }
+            const parsed = this.parseJson(jsonText);
             return this.validateResult(parsed);
         }
         catch (error) {
@@ -86,8 +65,8 @@ let AiClientService = class AiClientService {
         }
     }
     extractJson(content) {
-        let text = content.trim();
-        text = text
+        let text = content
+            .trim()
             .replace(/^```json\s*/i, "")
             .replace(/^```\s*/i, "")
             .replace(/\s*```$/i, "")
@@ -97,13 +76,20 @@ let AiClientService = class AiClientService {
         }
         const startIndex = text.indexOf("{");
         const endIndex = text.lastIndexOf("}");
-        if (startIndex === -1 || endIndex === -1) {
+        if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
             throw new common_1.InternalServerErrorException("AI 응답에서 JSON을 찾을 수 없습니다.");
         }
-        if (startIndex > endIndex) {
-            throw new common_1.InternalServerErrorException("AI 응답의 JSON 형식이 올바르지 않습니다.");
-        }
         return text.slice(startIndex, endIndex + 1);
+    }
+    parseJson(jsonText) {
+        try {
+            return JSON.parse(jsonText);
+        }
+        catch (error) {
+            console.error("AI JSON 파싱 실패");
+            console.error("추출된 JSON:", jsonText);
+            throw new common_1.InternalServerErrorException("AI 응답을 JSON으로 변환할 수 없습니다.");
+        }
     }
     validateResult(data) {
         if (!data || typeof data !== "object") {

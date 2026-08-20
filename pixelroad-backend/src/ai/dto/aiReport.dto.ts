@@ -1,5 +1,6 @@
 // 요청/응답 형식
-import { ApiProperty } from "@nestjs/swagger";
+import { HttpStatus } from "@nestjs/common";
+import { ApiProperty, ApiResponse } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsArray, IsInt, IsNumber, Min, ValidateNested } from "class-validator";
 
@@ -20,8 +21,7 @@ export class VisitedLandmarkDto {
 export class CreateReportDto {
     @ApiProperty({
         type: [VisitedLandmarkDto],
-        description: "사용자의 방문 랜드마크 목록"
-    })
+        description: "사용자의 방문 랜드마크 목록" })
     @IsArray()
     @ValidateNested({each: true})
     @Type(()=> VisitedLandmarkDto)

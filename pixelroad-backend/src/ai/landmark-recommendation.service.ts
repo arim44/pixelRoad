@@ -13,8 +13,7 @@ export class LandmarkRecommendationService {
      * 2. 방문 횟수가 높은 카테고리부터 확인한다.
      * 3. 해당 카테고리에 미방문 랜드마크가 있으면 그중 1개를 추천한다.
      * 4. 없으면 다음 순위 카테고리를 확인한다.
-     * 5. 모든 선호 카테고리에 미방문 랜드마크가 없다면
-     *    다른 미방문 랜드마크 중 1개를 추천한다.
+     * 5. 모든 선호 카테고리에 미방문 랜드마크가 없다면 추천하지 않음
      */
 
     // 추천 랜드마크 선택
@@ -25,11 +24,6 @@ export class LandmarkRecommendationService {
             visitedLandmarks.map((landmark) => landmark.landmarkId),
         );
 
-        // // 방문한 랜드마크아이디
-        // const visited = allLandmarks.filter(
-        //     (landmark) => visitedIds.has(landmark.id),
-        // );
-
         // 3 미방문 랜드마크만 필터링
         const unvisited = allLandmarks.filter(
             (landmark) => !visitedIds.has(landmark.id),
@@ -38,7 +32,6 @@ export class LandmarkRecommendationService {
         // 미방문 랜드마크가 없으면 추천하지 않음
         if (unvisited.length === 0) {
             return undefined;
-            console.log("추천할 랜드마크가 없습니다");
         }
 
 
@@ -80,45 +73,6 @@ export class LandmarkRecommendationService {
 
         // 선호 카테고리에 미방문 랜드마크가 하나도 없는 경우
         // 추천하지않음
-        return undefined;
-        // 전체 미방문 랜드마크 중 하나 추천
-        // const randomIndex =  Math.floor(
-        //     Math.random() * unvisited.length);
-
-        // return unvisited[randomIndex];
-
-
-        // // 가장 많이 방문한 카테고리
-        // let preferredCategory: string | undefined;
-        // let maxVisitCount = 0;
-
-        // for (const [category, count] of categoryVisitCounts) {
-        //     if (count > maxVisitCount) {
-        //         maxVisitCount = count;
-        //         preferredCategory = category;
-        //     }
-        // }
-
-        // if (!preferredCategory) return undefined;
-
-
-
-        // const candidates = allLandmarks.filter(
-        //     (landmark) => landmark.category === preferredCategory &&
-        //         !visitedIds.has(landmark.id)
-        // );
-
-      
-        // // 추천 후보가 없다면 undifined
-        // if (candidates.length === 0) {
-        //     return undefined;
-        // }
-
-        // // 후보중 1개 추천  
-        // //return candidates[Math.floor(Math.random() * candidates.length)];
-        // // 미방문 랜드마크 중 1개선택
-        // const randomIndex = Math.floor(Math.random() * candidates.length);
-        // //    const categoryOrder = 
-        // return unvisited[randomIndex];
+        return undefined;        
     }
 }

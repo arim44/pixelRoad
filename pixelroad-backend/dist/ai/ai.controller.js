@@ -29,11 +29,16 @@ let AiController = class AiController {
 exports.AiController = AiController;
 __decorate([
     (0, common_1.Post)('report'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     (0, swagger_1.ApiOperation)({ summary: 'AI 탐험 리포트 생성',
         description: '사용자의 방문 기록을 기반으로 AI탐험 리포트를 생성합니다'
     }),
-    (0, swagger_1.ApiResponse)({ status: 201, description: 'AI탐험리포트 분석 결과',
+    (0, swagger_1.ApiResponse)({ status: common_1.HttpStatus.OK, description: 'AI 탐험 리포트 생성 성공',
         type: aiReport_dto_1.AiReportApiDto }),
+    (0, swagger_1.ApiResponse)({ status: common_1.HttpStatus.BAD_REQUEST,
+        description: '잘못된 요청 데이터' }),
+    (0, swagger_1.ApiResponse)({ status: common_1.HttpStatus.INTERNAL_SERVER_ERROR,
+        description: '서버 오류 또는 AI 호출 실패' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [aiReport_dto_1.CreateReportDto]),

@@ -37,13 +37,6 @@ let AiReportService = class AiReportService {
         const allLandmarks = await this.landmarkService.getAllLandmarks();
         const recommendation = this.recommendationService.selectRecommendation(visitedLandmarks, allLandmarks);
         const prompt = (0, ai_report_prompt_constant_1.createAiReportPrompt)(visited, recommendation);
-        if (!recommendation) {
-            return {
-                recommendation: undefined,
-                systemPrompt: ai_report_prompt_constant_1.AI_REPORT_SYSTEM_PROMPTS.AIREPORT_ANALYSIS,
-                prompt: (0, ai_report_prompt_constant_1.createAiReportPrompt)(visited, undefined),
-            };
-        }
         return {
             recommendation,
             systemPrompt: ai_report_prompt_constant_1.AI_REPORT_SYSTEM_PROMPTS.AIREPORT_ANALYSIS,

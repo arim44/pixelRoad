@@ -14,7 +14,7 @@ export class AiService {
     const result = await this.aireportService.getReportData(dto.visitedLandmarks);
     // 2 AI API 호출
     const aiResult = await this.aiClientService.generateReport(
-      result.prompt); //result.systemPrompt,
+      result.prompt);
 
     // 3 최종 API 응답 생성
     return {
@@ -33,13 +33,5 @@ export class AiService {
         }
       }
     };
-
-    // const result = await this.aireportService.analysis(visitedLandmarkIds);
-    // return { success: true, data: '결과' };
   }
-  // async createReport(dto: CreateReportDto) {
-  //   const result = await this.aireportService.analysis();
-  //   return { success: true, data: '결과' };
-  // }
-
 }

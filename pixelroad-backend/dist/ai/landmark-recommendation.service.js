@@ -14,7 +14,6 @@ let LandmarkRecommendationService = class LandmarkRecommendationService {
         const unvisited = allLandmarks.filter((landmark) => !visitedIds.has(landmark.id));
         if (unvisited.length === 0) {
             return undefined;
-            console.log("추천할 랜드마크가 없습니다");
         }
         const categoryVisitCounts = new Map();
         for (const visited of visitedLandmarks) {
