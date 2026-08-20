@@ -16,6 +16,7 @@ namespace PixelRoad.Location
         private GeoLocation current;
         private readonly float moveSpeedMetersPerSecond;
         private readonly float fastMoveMultiplier;
+        private readonly Transform headingSource;
 
         public GeoLocation Current
         {
@@ -27,12 +28,23 @@ namespace PixelRoad.Location
             get { return "Editor GPS simulation - WASD/Arrow move, Shift fast"; }
         }
 
-        /// <summary>시작 좌표와 이동 속도를 정해 시뮬레이션을 준비한다.</summary>
-        public SimulatedLocationProvider(double latitude, double longitude, float moveSpeedMetersPerSecond = 250f, float fastMoveMultiplier = 4f)
+        /// <summary>
+        /// 시작 좌표와 이동 속도를 정해 시뮬레이션을 준비한다.
+        /// headingSource를 주면 WASD를 화면(지도) 기준 남북동서 대신 그 Transform이 보는 방향(요) 기준
+        /// 앞/왼쪽/뒤/오른쪽으로 해석한다 - AR처럼 카메라가 도는 화면에서 쓴다. MapScene처럼 늘 진북이
+        /// 위인 2D 지도에서는 null로 두면 기존처럼 고정 남북동서로 움직인다.
+        /// </summary>
+        public SimulatedLocationProvider(
+            double latitude,
+            double longitude,
+            float moveSpeedMetersPerSecond = 250f,
+            float fastMoveMultiplier = 4f,
+            Transform headingSource = null)
         {
             current = new GeoLocation(latitude, longitude, 5f, true);
             this.moveSpeedMetersPerSecond = moveSpeedMetersPerSecond;
             this.fastMoveMultiplier = fastMoveMultiplier;
+            this.headingSource = headingSource;
         }
 
         /// <summary>시뮬레이션은 준비할 것이 없어 바로 끝난다.</summary>
@@ -51,6 +63,11 @@ namespace PixelRoad.Location
             }
 
             input = Vector2.ClampMagnitude(input, 1f);
+            if (headingSource != null)
+            {
+                input = RotateByHeading(input, headingSource.eulerAngles.y);
+            }
+
             float speed = moveSpeedMetersPerSecond * ReadSpeedMultiplier(fastMoveMultiplier);
             double latMeters = input.y * speed * deltaTime;
             double lonMeters = input.x * speed * deltaTime;
@@ -63,6 +80,20 @@ namespace PixelRoad.Location
         /// <summary>정리할 자원이 없어 아무것도 하지 않는다.</summary>
         public void Stop()
         {
+        }
+
+        /// <summary>
+        /// (x=오른쪽, y=앞) 화면 기준 입력을 headingDegrees(진북 기준 0~360, 시계 방향)만큼 돌려
+        /// (x=동쪽, y=북쪽) 성분으로 바꾼다. headingDegrees가 0이면 회전 없이 그대로(기존 동작과 동일)다.
+        /// </summary>
+        private static Vector2 RotateByHeading(Vector2 localInput, float headingDegrees)
+        {
+            float headingRad = headingDegrees * Mathf.Deg2Rad;
+            float cos = Mathf.Cos(headingRad);
+            float sin = Mathf.Sin(headingRad);
+            float north = localInput.y * cos - localInput.x * sin;
+            float east = localInput.y * sin + localInput.x * cos;
+            return new Vector2(east, north);
         }
 
         /// <summary>WASD/방향키를 읽어 이동 방향을 만든다. 입력 시스템 유무에 따라 경로가 갈린다.</summary>

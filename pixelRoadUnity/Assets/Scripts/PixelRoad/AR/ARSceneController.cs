@@ -6,6 +6,7 @@ using PixelRoad.Data;
 using PixelRoad.Geo;
 using PixelRoad.Location;
 using UnityEngine;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.XR.ARFoundation;
 
 namespace PixelRoad.AR
@@ -60,8 +61,18 @@ namespace PixelRoad.AR
             currentLocation = ARHandoff.InitialLocation;
 
 #if UNITY_EDITOR
-            locationProvider = new SimulatedLocationProvider(currentLocation.Latitude, currentLocation.Longitude);
-            headingProvider = new SimulatedHeadingProvider();
+            // TrackedPoseDriver는 실기기 추적 데이터를 매 프레임 카메라에 그대로 덮어써서, 에디터에서
+            // SimulatedHeadingProvider가 마우스/키로 돌려놓은 회전을 렌더 직전에 다시 지워 버린다
+            // (실기기가 없으니 추적할 게 없는데도 동작해 버림). 에디터에서는 꺼서 시뮬레이션이 그대로 반영되게 한다.
+            TrackedPoseDriver trackedPoseDriver = arCamera.GetComponent<TrackedPoseDriver>();
+            if (trackedPoseDriver != null)
+            {
+                trackedPoseDriver.enabled = false;
+            }
+
+            locationProvider = new SimulatedLocationProvider(
+                currentLocation.Latitude, currentLocation.Longitude, headingSource: arCamera.transform);
+            headingProvider = new SimulatedHeadingProvider(arCamera.transform);
 #else
             // UnityGpsLocationProvider는 지도 화면과 공유하는 MapConfig를 그대로 받는다(변경하지 않기 위해).
             // ARScene은 MapConfig에 의존하지 않으므로, ARConfig 값만 옮겨 담은 임시 인스턴스를 만들어 넘긴다.
