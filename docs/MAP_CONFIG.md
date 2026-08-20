@@ -43,7 +43,8 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 | `userMarkerPixelSize` | int | `44` | 지도 위 사용자 마커 한 변 크기(UI px). |
 | `markerTapMinimumPixelSize` | int | `96` | 거점 마커의 최소 터치 판정 크기(UI px). 그림보다 넓게 잡아 작은 아이콘도 누를 수 있게 한다. `spotMarkerPixelSize`보다 작으면 무시. 너무 키우면 인접 마커끼리 판정이 겹친다. |
 | `spotIconResourceFolder` | string | `PixelRoad/Icons` | 거점 아이콘 스프라이트를 찾을 Resources 폴더. |
-| `defaultSpotIconName` | string | `default` | JSON `thumbnail`·`category`로 못 찾았을 때 마지막으로 시도할 아이콘 이름. |
+| `defaultSpotIconName` | string | `default` | JSON `category`로 지도 마커 아이콘을 못 찾았을 때 마지막으로 시도할 아이콘 이름. |
+| `placeholderThumbnailName` | string | `placeholder` | 도감에서 `thumbnail` 이미지가 없거나 아직 해금하지 않은 랜드마크에 쓸 대체 이미지 이름. 지도 마커에는 쓰이지 않는다. |
 | `userIconName` | string | `user` | 사용자 위치 마커 아이콘 이름. |
 
 아이콘 조회 규칙은 `Assets/Resources/PixelRoad/Icons/README.md` 참고.

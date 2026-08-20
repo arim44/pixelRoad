@@ -15,6 +15,7 @@
   "markerTapMinimumPixelSize": 96,
   "spotIconResourceFolder": "PixelRoad/Icons",
   "defaultSpotIconName": "default",
+  "placeholderThumbnailName": "placeholder",
   "userIconName": "user",
   "enableLiveVectorMap": true,
   "allowLiveVectorMapInRelease": false,

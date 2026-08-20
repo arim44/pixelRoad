@@ -62,8 +62,11 @@ namespace PixelRoad.Data
         [Tooltip("랜드마크 아이콘 스프라이트를 찾을 Resources 폴더.")]
         public string 아이콘리소스폴더 = "PixelRoad/Icons";
 
-        [Tooltip("thumbnail·category 이름으로 아이콘을 못 찾았을 때 마지막으로 시도할 아이콘 이름.")]
+        [Tooltip("category 이름으로 지도 마커 아이콘을 못 찾았을 때 마지막으로 시도할 아이콘 이름.")]
         public string 기본랜드마크아이콘이름 = "default";
+
+        [Tooltip("도감에서 thumbnail 이미지가 없거나 아직 해금하지 않았을 때 쓸 대체 이미지 이름.")]
+        public string 도감대체이미지이름 = "placeholder";
 
         [Tooltip("사용자 위치 마커에 쓸 아이콘 이름.")]
         public string 사용자아이콘이름 = "user";
@@ -159,6 +162,7 @@ namespace PixelRoad.Data
             config.markerTapMinimumPixelSize = 마커최소터치크기픽셀;
             config.spotIconResourceFolder = 아이콘리소스폴더;
             config.defaultSpotIconName = 기본랜드마크아이콘이름;
+            config.placeholderThumbnailName = 도감대체이미지이름;
             config.userIconName = 사용자아이콘이름;
 
             config.enableLiveVectorMap = 라이브벡터지도사용;

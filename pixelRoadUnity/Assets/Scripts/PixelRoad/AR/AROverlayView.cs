@@ -48,7 +48,8 @@ namespace PixelRoad.AR
             this.config = config;
             uiBindings.ValidateReferences();
 
-            iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName);
+            // AR은 도감 썸네일을 그리지 않으므로 대체 이미지 이름은 비워 둔다.
+            iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName, string.Empty);
 
             // 프레임 테두리 화살표(엣지)와 나침반 화살표(집중 모드)는 랜드마크마다 다른 아이콘과 달리
             // 데이터 없이 고정된 픽셀아트라, 프리팹에 굽는 대신 지금처럼 코드로 계속 생성해 붙인다.
@@ -243,7 +244,8 @@ namespace PixelRoad.AR
 
         private Sprite ResolveIconSprite(ARLandmarkSnapshot landmark)
         {
-            Sprite sprite = iconLibrary.Resolve(landmark.IconKey, landmark.Category);
+            // 지도와 같은 키를 그대로 쓴다. 같은 category면 지도와 AR에 같은 아이콘이 뜬다.
+            Sprite sprite = iconLibrary.Load(landmark.IconKey);
             return sprite != null
                 ? sprite
                 : ARUiFactory.CreateDiamondSprite(config.iconPixelSize, FallbackIconColor);
