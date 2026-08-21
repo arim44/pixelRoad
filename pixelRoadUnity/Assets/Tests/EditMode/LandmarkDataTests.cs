@@ -105,7 +105,7 @@ namespace PixelRoad.Tests.EditMode
             Type parserType = Type.GetType(ParserTypeName, true);
             MethodInfo parse = parserType.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static);
             Assert.That(parse, Is.Not.Null);
-            return (IList)parse.Invoke(null, new object[] { json, 50f });
+            return (IList)parse.Invoke(null, new object[] { json, 50f, null });
         }
 
         private static bool RecordVisit(object repository, int landmarkId, DateTime time)

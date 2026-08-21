@@ -112,7 +112,10 @@ namespace PixelRoad.UI
             spotMarkerSize = Mathf.Clamp(config.spotMarkerPixelSize, 8, 256);
             userMarkerSize = Mathf.Clamp(config.userMarkerPixelSize, 8, 256);
             markerTapMinimumSize = Mathf.Clamp(config.markerTapMinimumPixelSize, spotMarkerSize, 512);
-            iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName);
+            iconLibrary = new SpotIconLibrary(
+                config.spotIconResourceFolder,
+                config.defaultSpotIconName,
+                config.placeholderThumbnailName);
             pixelFilterEnabled = PlayerPrefs.HasKey(PixelModePreferenceKey)
                 ? PlayerPrefs.GetInt(PixelModePreferenceKey, 0) != 0
                 : config.enablePixelFilter;
@@ -291,10 +294,12 @@ namespace PixelRoad.UI
         /// <summary>
         /// 랜드마크 하나를 지도 마커와 도감 카드로 함께 등록한다.
         /// 마커 탭과 카드 탭 모두 같은 콜백으로 이어진다.
+        ///
+        /// 지도 마커는 category 아이콘을, 도감 카드는 thumbnail 이미지를 쓴다(서로 다른 그림).
         /// </summary>
         public void AddSpotMarker(SpotRuntimeState state, Action<SpotRuntimeState> onClick)
         {
-            Sprite icon = iconLibrary.Resolve(state.Definition.IconKey, state.Definition.Category);
+            Sprite icon = iconLibrary.Load(state.Definition.IconKey);
             LandmarkMarkerView markerView = UnityEngine.Object.Instantiate(
                 uiBindings.LandmarkMarkerPrefab,
                 markerRoot,
@@ -336,7 +341,11 @@ namespace PixelRoad.UI
                 state.Definition.Latitude,
                 state.Definition.Longitude);
 
-            codex.AddCard(state, icon, onClick);
+            codex.AddCard(
+                state,
+                iconLibrary.ResolveThumbnail(state.Definition.ThumbnailKey),
+                iconLibrary.Placeholder,
+                onClick);
             UpdateSpotState(state);
         }
 
@@ -525,7 +534,7 @@ namespace PixelRoad.UI
 
         /// <summary>
         /// 배너의 `카드 보기`. 도감 카드를 누른 것과 같은 상세 팝업을 지도 위에 그대로 띄운다.
-        /// 아이콘은 <see cref="SpotIconLibrary"/>가 캐시하고 있어 다시 조회해도 Resources 접근이 없다.
+        /// 이미지는 <see cref="SpotIconLibrary"/>가 캐시하고 있어 다시 조회해도 Resources 접근이 없다.
         /// </summary>
         private void ShowSelectedSpotDetail()
         {
@@ -536,7 +545,7 @@ namespace PixelRoad.UI
 
             codex.ShowDetail(
                 GlobalValue.SelectedSpot,
-                iconLibrary.Resolve(GlobalValue.SelectedSpot.Definition.IconKey, GlobalValue.SelectedSpot.Definition.Category));
+                iconLibrary.ResolveThumbnail(GlobalValue.SelectedSpot.Definition.ThumbnailKey));
         }
 
         /// <summary>

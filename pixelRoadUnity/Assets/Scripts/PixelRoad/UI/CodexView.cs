@@ -116,23 +116,32 @@ namespace PixelRoad.UI
             root.SetActive(visible);
         }
 
-        /// <summary>랜드마크 카드를 하나 추가한다. 아이콘은 지도 마커와 같은 규칙으로 이미 해석된 것을 받는다.</summary>
-        public void AddCard(SpotRuntimeState state, Sprite icon, Action<SpotRuntimeState> onSelected)
+        /// <summary>
+        /// 랜드마크 카드를 하나 추가한다. 도감 이미지는 landmarks.json의 thumbnail을 따르며,
+        /// 썸네일이 없거나 아직 해금하지 않았을 때 쓸 대체 이미지를 함께 받는다.
+        /// </summary>
+        public void AddCard(
+            SpotRuntimeState state,
+            Sprite thumbnail,
+            Sprite placeholder,
+            Action<SpotRuntimeState> onSelected)
         {
             LandmarkCardView view = Instantiate(cardPrefab, content, false);
             view.gameObject.name = "Codex_" + state.Definition.Id;
-            view.Button.onClick.AddListener(() => ShowDetail(state, icon, onSelected));
-            if (icon != null)
-            {
-                view.Icon.sprite = icon;
-            }
-
+            view.Button.onClick.AddListener(() => ShowDetail(state, thumbnail, onSelected));
             view.Icon.raycastTarget = false;
-            cards[state.Definition.Id] = new CardBinding(view, state.Definition.Category);
+            cards[state.Definition.Id] = new CardBinding(
+                view,
+                state.Definition.Category,
+                thumbnail,
+                placeholder);
             UpdateCard(state);
         }
 
-        /// <summary>해금 여부에 맞춰 카드의 글자·색·자물쇠를 다시 칠한다. 잠긴 카드는 이름만 남기고 설명을 ??? 로 가린다.</summary>
+        /// <summary>
+        /// 해금 여부에 맞춰 카드의 이미지·글자·색·자물쇠를 다시 칠한다.
+        /// 잠긴 카드는 이름만 남기고 설명을 ??? 로 가리며, 이미지도 대체 이미지로 덮는다.
+        /// </summary>
         public void UpdateCard(SpotRuntimeState state)
         {
             if (!cards.TryGetValue(state.Definition.Id, out CardBinding binding))
@@ -147,6 +156,14 @@ namespace PixelRoad.UI
             view.NameText.color = unlocked ? (Color)UnlockedNameColor : (Color)LockedNameColor;
             view.DescriptionText.text = unlocked ? state.Definition.Description : "???";
             view.BadgeText.text = state.Definition.CollectionTitle;
+
+            // 해금 전에는 실제 썸네일을 보여 주지 않는다. 해금하는 순간 진짜 이미지로 바뀐다.
+            Sprite image = unlocked ? (binding.Thumbnail ?? binding.Placeholder) : binding.Placeholder;
+            if (image != null && view.Icon.sprite != image)
+            {
+                view.Icon.sprite = image;
+            }
+
             view.Icon.color = unlocked ? Color.white : (Color)LockedIconTint;
             view.LockIcon.gameObject.SetActive(!unlocked);
         }
@@ -252,13 +269,13 @@ namespace PixelRoad.UI
         /// 도감을 열지 않고 상세 팝업만 띄운다. 지도 배너의 `카드 보기`가 쓴다.
         /// 상세 팝업은 도감 패널 밖(캔버스 직속)에 있어서 도감이 닫혀 있어도 그대로 보인다.
         /// </summary>
-        public void ShowDetail(SpotRuntimeState state, Sprite icon)
+        public void ShowDetail(SpotRuntimeState state, Sprite thumbnail)
         {
-            ShowDetail(state, icon, null);
+            ShowDetail(state, thumbnail, null);
         }
 
         /// <summary>선택 콜백을 먼저 알린 뒤 해금된 랜드마크만 상세 팝업에 채워 띄운다.</summary>
-        private void ShowDetail(SpotRuntimeState state, Sprite icon, Action<SpotRuntimeState> onSelected)
+        private void ShowDetail(SpotRuntimeState state, Sprite thumbnail, Action<SpotRuntimeState> onSelected)
         {
             onSelected?.Invoke(state);
             if (!state.IsUnlocked)
@@ -267,19 +284,30 @@ namespace PixelRoad.UI
                 return;
             }
 
-            detail.Show(state.Definition, icon);
+            detail.Show(state.Definition, thumbnail);
         }
 
-        /// <summary>카드 뷰와 그 카드의 category를 묶어 둔다. 필터링할 때 정의를 다시 뒤지지 않기 위함이다.</summary>
+        /// <summary>
+        /// 카드 뷰와 그 카드의 category·이미지를 묶어 둔다.
+        /// 필터링과 해금 반영 때 정의를 다시 뒤지거나 Resources를 다시 읽지 않기 위함이다.
+        /// </summary>
         private readonly struct CardBinding
         {
             public readonly LandmarkCardView View;
             public readonly string Category;
 
-            public CardBinding(LandmarkCardView view, string category)
+            /// <summary>해금 뒤에 보여 줄 실제 썸네일. 파일이 없으면 null.</summary>
+            public readonly Sprite Thumbnail;
+
+            /// <summary>썸네일이 없거나 잠겨 있을 때 보여 줄 대체 이미지.</summary>
+            public readonly Sprite Placeholder;
+
+            public CardBinding(LandmarkCardView view, string category, Sprite thumbnail, Sprite placeholder)
             {
                 View = view;
                 Category = category;
+                Thumbnail = thumbnail;
+                Placeholder = placeholder;
             }
         }
     }
