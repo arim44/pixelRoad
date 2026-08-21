@@ -44,15 +44,6 @@ export class AiReportService {
         // 3 AI Prompt 생성
         const prompt = createAiReportPrompt(visited, recommendation);
 
-        // return {
-        //         recommendation: undefined,
-        //         systemPrompt: AI_REPORT_SYSTEM_PROMPTS.AIREPORT_ANALYSIS,
-        //         prompt: createAiReportPrompt(
-        //             visited,
-        //             undefined
-        //         ),
-        //     };
-
         return {
             recommendation,
             systemPrompt: AI_REPORT_SYSTEM_PROMPTS.AIREPORT_ANALYSIS,
