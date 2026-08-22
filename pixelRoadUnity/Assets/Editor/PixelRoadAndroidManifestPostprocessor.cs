@@ -10,30 +10,26 @@ using UnityEngine;
 namespace PixelRoad.Editor
 {
     /// <summary>
-    /// A non-development build without the approved live-map symbol is an offline
-    /// review flavor. Unity may infer INTERNET from unrelated packages, so remove it
-    /// from that generated flavor only. Development and approved live builds retain it.
+    /// 모든 빌드는 기본적으로 지도를 쓰므로 INTERNET 권한을 유지한다.
+    /// PIXELROAD_OFFLINE_REVIEW 심볼을 켠 오프라인 심사 빌드에서만 권한을 빼고,
+    /// Unity가 다른 패키지에서 유추해 넣은 중복 선언도 함께 정리한다.
     /// </summary>
     public sealed class PixelRoadAndroidManifestPostprocessor :
         IPreprocessBuildWithReport,
         IPostGenerateGradleAndroidProject,
         IPostprocessBuildWithReport
     {
-        private const string LiveMapSymbol = "PIXELROAD_LIVE_VECTOR_MAP";
+        private const string OfflineReviewSymbol = "PIXELROAD_OFFLINE_REVIEW";
         private const string AndroidNamespace = "http://schemas.android.com/apk/res/android";
         private const string InternetPermission = "android.permission.INTERNET";
-        private static bool developmentBuildInProgress;
-
         public int callbackOrder
         {
             get { return 1000; }
         }
 
-        /// <summary>이번 빌드가 개발 빌드인지 기억해 둔다. 매니페스트 단계에서는 빌드 옵션을 알 수 없기 때문이다.</summary>
+        /// <summary>빌드 시작 시점에 할 일은 없다. 인터페이스를 맞추기 위해 비워 둔다.</summary>
         public void OnPreprocessBuild(BuildReport report)
         {
-            developmentBuildInProgress = report != null
-                && (report.summary.options & BuildOptions.Development) != 0;
         }
 
         /// <summary>
@@ -41,9 +37,8 @@ namespace PixelRoad.Editor
         /// </summary>
         public void OnPostGenerateGradleAndroidProject(string path)
         {
-            bool includeInternet = developmentBuildInProgress
-                || EditorUserBuildSettings.development
-                || HasAndroidDefine(LiveMapSymbol);
+            // 지도가 기본 기능이므로 INTERNET 은 기본 포함이다. 오프라인 심사 빌드에서만 뺀다.
+            bool includeInternet = !HasAndroidDefine(OfflineReviewSymbol);
 
             string manifestPath = Path.Combine(path, "src", "main", "AndroidManifest.xml");
             if (!File.Exists(manifestPath))
@@ -116,10 +111,9 @@ namespace PixelRoad.Editor
             }
         }
 
-        /// <summary>다음 빌드에 상태가 새지 않도록 기억해 둔 플래그를 되돌린다.</summary>
+        /// <summary>빌드 종료 시점에 되돌릴 상태가 없다. 인터페이스를 맞추기 위해 비워 둔다.</summary>
         public void OnPostprocessBuild(BuildReport report)
         {
-            developmentBuildInProgress = false;
         }
 
         /// <summary>안드로이드 플랫폼에 해당 스크립팅 심볼이 켜져 있는지 확인한다.</summary>

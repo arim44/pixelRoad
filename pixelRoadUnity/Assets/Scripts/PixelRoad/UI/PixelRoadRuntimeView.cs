@@ -17,8 +17,6 @@ namespace PixelRoad.UI
     /// </summary>
     public sealed class PixelRoadRuntimeView
     {
-        private const string PixelModePreferenceKey = "PixelRoad.MapPixelMode";
-
         /// <summary>유저 마커를 화면 가장자리에서 유지할 여유(px).</summary>
         private const float UserMarkerViewportPadding = 24f;
 
@@ -61,6 +59,8 @@ namespace PixelRoad.UI
         private readonly TMP_Text distanceText;
         private readonly GnbView gnb;
         private readonly QuitDialogView quitDialog;
+        private readonly UnlockDialogView unlockDialog;
+        private readonly ReportView report;
 
         // GNB 배경은 지도 위에서만 반투명이다. 색은 프리팹 값을 그대로 읽어 두 벌로 캐시한다.
         private readonly Image gnbBackground;
@@ -71,7 +71,6 @@ namespace PixelRoad.UI
         private readonly Sprite lockedIcon;
         private readonly Sprite unlockedIcon;
         private readonly PixelRoadUiBindings uiBindings;
-        private bool pixelFilterEnabled;
         private bool mapRendered;
         private GeoLocation lastUserLocation;
 
@@ -94,8 +93,21 @@ namespace PixelRoad.UI
         /// <summary>쓸 수 있는 GNB 탭을 눌렀을 때 발생한다.</summary>
         public event Action<GnbTab> GnbTabSelected;
 
+        /// <summary>조건을 만족하지 못해 못 쓰는 GNB 탭을 눌렀을 때 발생한다.</summary>
+        public event Action<GnbTab> GnbTabBlocked;
+
         /// <summary>종료 확인 창에서 `확인`을 눌렀을 때 발생한다. 실제 종료는 앱이 결정한다.</summary>
         public event Action QuitConfirmed;
+
+        /// <summary>
+        /// 특정 랜드마크로 지도를 옮겨 달라는 요청. 인자는 landmarks.json의 id다.
+        /// 카드 앞면의 `지도에서 보기`와 리포트의 추천 카드가 함께 쓴다.
+        /// 뷰는 id만 알고 있어서 실제 스팟 상태를 찾아 <see cref="FocusOnSpot"/>로 넘기는 일은 앱이 맡는다.
+        /// </summary>
+        public event Action<int> SpotFocusRequested;
+
+        /// <summary>리포트 분석을 다시 시도해 달라는 요청.</summary>
+        public event Action ReportRetryRequested;
 
         /// <summary>
         /// 설정값과 프리팹 참조를 받아 UI 초기 상태를 잡고 지도 렌더러·입력·버튼 연결을 끝낸다.
@@ -116,10 +128,6 @@ namespace PixelRoad.UI
                 config.spotIconResourceFolder,
                 config.defaultSpotIconName,
                 config.placeholderThumbnailName);
-            pixelFilterEnabled = PlayerPrefs.HasKey(PixelModePreferenceKey)
-                ? PlayerPrefs.GetInt(PixelModePreferenceKey, 0) != 0
-                : config.enablePixelFilter;
-
             // UI는 씬에 배치된 PixelRoadUIRoot 프리팹 인스턴스가 전부다.
             // Canvas·EventSystem·마커 스프라이트를 포함해 여기서 만드는 오브젝트는 하나도 없다.
             uiBindings = bindings;
@@ -143,6 +151,8 @@ namespace PixelRoad.UI
             }
 
             quitDialog = uiBindings.QuitDialog;
+            unlockDialog = uiBindings.UnlockDialog;
+            report = uiBindings.ReportView;
             lockedIcon = iconLibrary.Load(LockedIconName);
             unlockedIcon = iconLibrary.Load(UnlockedIconName);
             codex = uiBindings.CodexView;
@@ -152,6 +162,22 @@ namespace PixelRoad.UI
             GlobalValue.Clear();
 
             codex.Initialize();
+
+            // 카드 앞면의 `지도에서 보기`는 도감과 지도 어느 쪽에서 열렸든 같은 경로를 탄다.
+            codex.DetailMapRequested += definition =>
+            {
+                if (definition != null)
+                {
+                    SpotFocusRequested?.Invoke(definition.LandmarkId);
+                }
+            };
+
+            report.Initialize();
+            report.ExploreRequested += () => SetReportVisible(false);
+            report.RecommendationRequested += landmarkId => SpotFocusRequested?.Invoke(landmarkId);
+            report.RetryRequested += () => ReportRetryRequested?.Invoke();
+
+            unlockDialog.Initialize();
             quitDialog.Initialize(HideQuitDialog, () => QuitConfirmed?.Invoke());
             uiBindings.RecenterButton.onClick.AddListener(StartFollowingUser);
             uiBindings.BannerCardButton.onClick.AddListener(ShowSelectedSpotDetail);
@@ -164,10 +190,6 @@ namespace PixelRoad.UI
             distanceIndicator.SetActive(false);
 
             liveMapRenderer = CreateLiveMapRenderer(out string liveMapUnavailableReason);
-            if (liveMapRenderer != null)
-            {
-                liveMapRenderer.SetPixelMode(pixelFilterEnabled);
-            }
 
             // 아이콘을 못 찾으면 프리팹에 박아 둔 스프라이트를 그대로 둔다(런타임 생성 없음).
             Sprite userIcon = iconLibrary.Load(config.userIconName);
@@ -183,8 +205,8 @@ namespace PixelRoad.UI
 
             gnb.Initialize();
             gnb.SetCurrent(GnbTab.Map);
-            gnb.SetInteractable(GnbTab.Report, false);
             gnb.TabSelected += tab => GnbTabSelected?.Invoke(tab);
+            gnb.TabBlocked += tab => GnbTabBlocked?.Invoke(tab);
     
             uiBindings.AttributionText.text = string.IsNullOrWhiteSpace(config.mapAttribution)
                 ? "© OpenStreetMap contributors"
@@ -227,15 +249,7 @@ namespace PixelRoad.UI
         /// </summary>
         private ILiveMapController CreateLiveMapRenderer(out string unavailableReason)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD || PIXELROAD_LIVE_VECTOR_MAP
-            if (!ShouldEnableLiveVectorMap(config))
-            {
-                unavailableReason = config != null && !config.enableLiveVectorMap
-                    ? "map_config.json 의 enableLiveVectorMap 이 false 입니다."
-                    : "릴리스 빌드에서는 map_config.json 의 allowLiveVectorMapInRelease 가 true 여야 합니다.";
-                return null;
-            }
-
+#if !PIXELROAD_OFFLINE_REVIEW
             LiveVectorMapRenderer renderer = viewport.gameObject.AddComponent<LiveVectorMapRenderer>();
             renderer.ViewChanged += UpdateLiveMarkerPositions;
             renderer.FirstTileReady += OnFirstLiveTileReady;
@@ -257,8 +271,8 @@ namespace PixelRoad.UI
             return null;
 #else
             unavailableReason =
-                "이 빌드에는 라이브 지도 요청 코드가 포함되지 않았습니다. "
-                + "PIXELROAD_LIVE_VECTOR_MAP 스크립팅 심볼이 필요합니다.";
+                "오프라인 심사 빌드에는 라이브 지도 요청 코드가 포함되지 않았습니다. "
+                + "PIXELROAD_OFFLINE_REVIEW 스크립팅 심볼을 빼고 다시 빌드하세요.";
             return null;
 #endif
         }
@@ -613,11 +627,51 @@ namespace PixelRoad.UI
         /// <summary>도감을 열고 닫는다. GNB 선택 표시와 배경 투명도도 함께 맞춰 준다.</summary>
         public void SetCodexVisible(bool visible)
         {
+            if (visible)
+            {
+                // 전체 화면 패널은 한 번에 하나만 띄운다. 리포트가 열려 있었다면 먼저 접는다.
+                report.SetVisible(false);
+            }
+
             codex.SetVisible(visible);
 
             // 도감을 닫으면 지도로 돌아오므로 GNB 선택 상태도 함께 맞춘다.
             gnb.SetCurrent(visible ? GnbTab.Codex : GnbTab.Map);
             ApplyGnbBackground(visible);
+        }
+
+        /// <summary>AI 탐험 리포트를 열고 닫는다. 도감과 같은 자리를 쓰므로 서로 배타적으로 띄운다.</summary>
+        public void SetReportVisible(bool visible)
+        {
+            if (visible)
+            {
+                codex.SetVisible(false);
+            }
+
+            report.SetVisible(visible);
+            gnb.SetCurrent(visible ? GnbTab.Report : GnbTab.Map);
+            ApplyGnbBackground(visible);
+        }
+
+        /// <summary>리포트 화면이 열려 있는지.</summary>
+        public bool IsReportVisible()
+        {
+            return report.IsVisible;
+        }
+
+        /// <summary>카드1의 탐험 기록 요약을 갱신한다. 해금 상태가 바뀔 때만 부른다.</summary>
+        public void SetReportSummary(int unlockedCount, IList<SpotRuntimeState> spots)
+        {
+            report.SetExplorationSummary(unlockedCount, spots);
+        }
+
+        /// <summary>리포트 화면의 상태(기록없음·분석중·완료·실패)를 바꾼다.</summary>
+        public void SetReportState(
+            ReportView.ReportScreenState state,
+            ReportResponse response,
+            float toastAutoHideSeconds)
+        {
+            report.SetState(state, response, toastAutoHideSeconds);
         }
 
         /// <summary>
@@ -653,13 +707,66 @@ namespace PixelRoad.UI
         }
 
         /// <summary>
-        /// AI 탐험 리포트 탭의 활성 여부와 알림 뱃지를 갱신한다.
-        /// 해금이 하나도 없으면 비활성, 마지막 리포트 요청 시점과 해금 개수가 다르면 뱃지를 켠다.
+        /// AI 탐험 리포트 탭의 알림 뱃지를 갱신한다.
+        /// 탭 자체는 항상 누를 수 있고(해금이 없으면 `탐험 기록이 없습니다` 화면이 뜬다),
+        /// 분석이 갱신됐는데 아직 열어 보지 않았을 때만 빨간 점을 켠다.
         /// </summary>
-        public void SetReportTabState(bool available, bool hasPendingUpdate)
+        public void SetReportBadge(bool hasUnreadUpdate)
         {
-            gnb.SetInteractable(GnbTab.Report, available);
-            gnb.SetBadgeVisible(GnbTab.Report, available && hasPendingUpdate);
+            gnb.SetBadgeVisible(GnbTab.Report, hasUnreadUpdate);
+        }
+
+        /// <summary>
+        /// AR 탭을 누를 수 있는지 갱신한다.
+        /// 판정(허용 반경 안에 랜드마크가 있는지, 선택한 랜드마크가 반경 안인지)은 앱이 한다.
+        /// </summary>
+        public void SetArTabAvailable(bool available)
+        {
+            gnb.SetInteractable(GnbTab.Ar, available);
+        }
+
+        /// <summary>AR 탭이 지금 활성인지.</summary>
+        public bool IsArTabAvailable()
+        {
+            return gnb.IsInteractable(GnbTab.Ar);
+        }
+
+        /// <summary>
+        /// 지정한 랜드마크로 지도를 옮기고 선택 상태로 만든다.
+        /// 열려 있던 카드 상세·도감·리포트를 모두 접고 지도 탭으로 되돌린다.
+        ///
+        /// 위치 추적이 켜져 있으면 다음 위치 갱신에서 중심이 내 위치로 되돌아가므로 추적을 먼저 끊는다.
+        /// 다시 따라가려면 우하단 재추적 버튼을 누르면 된다.
+        /// </summary>
+        public void FocusOnSpot(SpotRuntimeState state, GeoLocation currentLocation)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            codex.Detail.Hide();
+            SetCodexVisible(false);
+            SetReportVisible(false);
+
+            StopFollowingUser();
+            CenterOnLocation(state.Definition.Latitude, state.Definition.Longitude);
+            SelectSpot(state, currentLocation);
+        }
+
+        /// <summary>해금 알림 창을 띄운다. 이미 떠 있으면 뒤에 줄을 세운다.</summary>
+        public void ShowUnlockDialog(SpotDefinition definition)
+        {
+            unlockDialog.Enqueue(definition);
+        }
+
+        /// <summary>해금 알림 창이 떠 있는지. 뒤로 가기에서 참고한다.</summary>
+        public bool IsUnlockDialogVisible => unlockDialog.IsVisible;
+
+        /// <summary>해금 알림 창을 한 단계 닫는다. 남은 알림이 있으면 이어서 보여 준다.</summary>
+        public void DismissUnlockDialog()
+        {
+            unlockDialog.Dismiss();
         }
 
         /// <summary>해금 등 상태가 바뀐 랜드마크를 마커·배너·도감 카드에 한 번에 반영한다.</summary>
@@ -676,32 +783,6 @@ namespace PixelRoad.UI
             }
 
             codex.UpdateCard(state);
-        }
-
-        /// <summary>
-        /// 픽셀 필터를 켜고 끈다. 토글 버튼은 와이어프레임에 없어 UI에서 제거했고,
-        /// 값은 map_config.json과 PlayerPrefs로만 관리한다.
-        /// </summary>
-        public void SetPixelFilter(bool enabled)
-        {
-            if (pixelFilterEnabled == enabled)
-            {
-                return;
-            }
-
-            pixelFilterEnabled = enabled;
-            PlayerPrefs.SetInt(PixelModePreferenceKey, pixelFilterEnabled ? 1 : 0);
-            PlayerPrefs.Save();
-            ApplyPixelFilter();
-        }
-
-        /// <summary>현재 픽셀 필터 설정을 지도 렌더러에 전달한다.</summary>
-        private void ApplyPixelFilter()
-        {
-            if (liveMapRenderer != null)
-            {
-                liveMapRenderer.SetPixelMode(pixelFilterEnabled);
-            }
         }
 
         /// <summary>드래그 입력을 지도 이동으로 넘긴다. 사용자가 직접 움직였으므로 위치 추적은 해제한다.</summary>
@@ -786,25 +867,17 @@ namespace PixelRoad.UI
             SetMapNotice(message);
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD || PIXELROAD_LIVE_VECTOR_MAP
-        /// <summary>
-        /// 라이브 벡터 지도를 켜도 되는지 판단한다.
-        /// 에디터에서는 항상 허용하고, 릴리스 빌드는 설정에서 명시적으로 열어 줘야 한다.
-        /// </summary>
-        private static bool ShouldEnableLiveVectorMap(MapConfig mapConfig)
+        /// <summary>지도 위 안내 문구를 지운다. 안내를 띄운 쪽이 시간이 지나면 직접 정리한다.</summary>
+        public void ClearLocationStatus()
         {
-            if (mapConfig == null || !mapConfig.enableLiveVectorMap)
-            {
-                return false;
-            }
-
-#if UNITY_EDITOR
-            return true;
-#else
-            return Debug.isDebugBuild || mapConfig.allowLiveVectorMapInRelease;
-#endif
+            SetMapNotice(null);
         }
-#endif
+
+        /// <summary>지금 지도 위에 떠 있는 안내 문구. 없으면 null.</summary>
+        public string CurrentLocationStatus
+        {
+            get { return mapNoticeText.gameObject.activeSelf ? mapNoticeText.text : null; }
+        }
 
         /// <summary>
         /// 해금 상태를 마커·카드 아이콘에 반영한다.

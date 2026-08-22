@@ -246,7 +246,7 @@ Response 200
 
 | # | 작업 |
 |---|---|
-| L-1 | **릴리스 빌드에서 지도가 표시되지 않는 문제** — `map_config.json`의 `allowLiveVectorMapInRelease: false` + `PIXELROAD_LIVE_VECTOR_MAP` 스크립팅 심볼 미정의. 시연 APK 전에 반드시 해결 |
+| L-1 | ~~**릴리스 빌드에서 지도가 표시되지 않는 문제**~~ **2026-08-22 해결.** 릴리스 전용 게이트를 제거하고 지도를 모든 빌드 기본값으로 바꿨다. 네트워크를 빼야 할 때만 `PIXELROAD_OFFLINE_REVIEW` 심볼로 오프라인 심사 APK를 굽는다 |
 | L-2 | `applicationIdentifier` 비어 있음 (패키지명 미설정) |
 | L-3 | `Assets/InitTestScene*.unity` 2개 잔여 파일 정리 |
 | L-4 | 배포 전 `com.coplaydev.unity-mcp` 패키지 제거 검토 |

@@ -28,13 +28,6 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 | `bounds` | object | — | 거점이 분포하는 대략적 위경도 범위. `northLat` / `southLat` / `westLon` / `eastLon`. 지도 표시가 아니라 해금 판정용 공간 인덱스의 기준 위도를 잡는 데 쓰인다. 유효하지 않으면 앱이 시작하지 않는다. |
 | `defaultUnlockRadiusMeters` | float | `50` | JSON `visitRadius`가 비었거나 0 이하일 때 쓰는 기본 방문 반경(m). |
 
-## 픽셀 필터
-
-| 키 | 타입 | 기본값 | 설명 |
-| --- | --- | --- | --- |
-| `enablePixelFilter` | bool | `false` | 픽셀 필터 최초 기본값. 사용자가 상단 "픽셀" 버튼을 한 번이라도 누르면 PlayerPrefs 값이 우선한다. |
-| `pixelBlockSize` | int | `4` | 픽셀 모드에서 지도 RenderTexture를 1/N로 렌더한 뒤 점 샘플링으로 확대하는 배수. UI와 마커는 영향받지 않는다. |
-
 ## 마커 · 아이콘
 
 | 키 | 타입 | 기본값 | 설명 |
@@ -53,8 +46,11 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 
 | 키 | 타입 | 기본값 | 설명 |
 | --- | --- | --- | --- |
-| `enableLiveVectorMap` | bool | `true` | 네트워크 벡터 타일 지도 사용 여부. 정적 지도 폴백을 제거했으므로 `false`면 지도가 아예 표시되지 않고 안내 문구만 나온다. |
-| `allowLiveVectorMapInRelease` | bool | `false` | 릴리스 빌드에서도 라이브 지도를 허용할지. `false`면 에디터·개발 빌드에서만 지도가 동작한다(컴플라이언스 게이트). 릴리스에서 지도를 쓰려면 이 값을 `true`로 두고 `PIXELROAD_LIVE_VECTOR_MAP` 스크립팅 심볼도 정의해야 한다. |
+라이브 벡터 지도는 **끌 수 없다.** 켜고 끄는 스위치(`enableLiveVectorMap`)와 릴리스 전용 게이트
+(`allowLiveVectorMapInRelease`)를 모두 제거했고, 지도는 모든 빌드에서 항상 동작한다.
+네트워크를 빼야 하는 오프라인 심사 APK만 `PIXELROAD_OFFLINE_REVIEW` 스크립팅 심볼로 따로 굽는다
+(`Pixel Road > Build Android Offline Review APK` 가 빌드 동안만 심볼을 켠다).
+지도를 못 쓰게 만들려면 타일 제공자 설정이 검증에 걸리게 하는 방법뿐이다(예: `vectorTileUrlTemplate` 를 비움).
 | `vectorTileProviderId` | string | `osm-shortbread-development` | 타일 제공자 식별자. 디스크 캐시 구분과 로그에 쓰인다. |
 | `vectorTileSchema` | string | `shortbread_v1` | 벡터 타일 스키마 이름. 레이어 해석 규칙을 고른다. |
 | `vectorTileUrlTemplate` | string | OSM shortbread URL | 타일 URL 템플릿. `{z}` `{x}` `{y}`가 치환된다. |
@@ -76,6 +72,26 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 | --- | --- | --- | --- |
 | `desiredAccuracyMeters` | float | `15` | GPS에 요청할 목표 정확도(m). 작을수록 정확하지만 배터리를 더 쓴다. |
 | `locationUpdateDistanceMeters` | float | `3` | 이 거리(m) 이상 움직였을 때만 위치 갱신을 받는다. |
+
+## AI 탐험 리포트
+
+| 키 | 타입 | 기본값 | 설명 |
+| --- | --- | --- | --- |
+| `reportApiUrl` | string | `""` | 분석을 요청할 주소(POST). **비워 두면 서버를 부르지 않고 임시(목) 응답으로 동작한다.** 예: `https://example.com/api/report` |
+| `reportRequestTimeoutSeconds` | int | `20` | 응답을 기다리는 최대 시간(초). |
+| `reportMockDelaySeconds` | float | `1.5` | 임시 응답으로 동작할 때 흉내 낼 지연(초). 분석중 화면을 눈으로 확인하려고 둔다. |
+| `reportToastAutoHideSeconds` | float | `3` | 갱신 완료 토스트가 저절로 사라지기까지의 시간(초). |
+
+예전에는 `Resources/PixelRoad/report_config.json` 을 따로 뒀지만, 설정 파일이 둘로 갈라져 헷갈리므로 여기로 합쳤다.
+**주소를 바꿀 때는 `MapConfig.asset`(인스펙터)의 `리포트API주소`를 고친다.** 위 표의 JSON 키는 에셋이 없을 때만 쓰인다.
+
+요청·응답 형식은 다음과 같다(`Data/ReportDto.cs`).
+
+```
+POST {reportApiUrl}
+Req  { "visitedLandmarks": [ { "landmarkId": 1, "visitCount": 2 } ] }
+Res  { "analysis": "...", "recommendation": { "landmarkId": 24, "name": "...", "reason": "..." } }
+```
 
 ## 에디터 시뮬레이션 (빌드 동작에는 영향 없음)
 

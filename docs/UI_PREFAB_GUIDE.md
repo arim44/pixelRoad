@@ -4,6 +4,7 @@
 `main_지도`(1080 × 1920)를 기준으로 하며, Canvas Scaler 기준 해상도가 같아 Figma 픽셀값을 1:1로 옮긴다.
 
 화면의 `ZoomIn`/`ZoomOut` 버튼은 제거했다. 지도 확대·축소는 모바일 핀치 또는 에디터/PC의 마우스 휠 입력으로만 동작한다.
+픽셀 필터도 제거했다. 토글 버튼과 함께 `map_config`의 `enablePixelFilter` / `pixelBlockSize`, 렌더러의 픽셀 모드 경로까지 전부 삭제했으므로, 다시 쓰려면 새로 구현해야 한다.
 
 | 프리팹 | 용도 |
 |---|---|
@@ -39,7 +40,7 @@ UI 작업자는 각 프리팹을 Prefab Mode로 열어 앵커, 크기, 색상, �
 ### 아직 런타임에 만드는 것
 
 - **랜드마크 마커·도감 카드**: `landmarks.json`의 개수만큼 `LandmarkMarker` / `LandmarkCodexCard` 프리팹을 `Instantiate` 한다. 데이터 개수가 정해져 있지 않아 씬에 미리 둘 수 없다.
-- **`LiveVectorMapRenderer`와 벡터 타일**: `MapViewport`에 `AddComponent` 하고, 보이는 타일마다 GameObject·Mesh·Material·RenderTexture를 만든다. 지도 타일 자체가 동적이라 프리팹화할 수 없고, 이 클래스는 `#if UNITY_EDITOR || DEVELOPMENT_BUILD || PIXELROAD_LIVE_VECTOR_MAP`로 감싸져 릴리스 빌드에는 타입이 아예 없다. 프리팹에 넣으면 릴리스에서 Missing Script가 된다.
+- **`LiveVectorMapRenderer`와 벡터 타일**: `MapViewport`에 `AddComponent` 하고, 보이는 타일마다 GameObject·Mesh·Material·RenderTexture를 만든다. 지도 타일 자체가 동적이라 프리팹화할 수 없고, 이 클래스는 `#if !PIXELROAD_OFFLINE_REVIEW`로 감싸져 있어 평소 빌드에는 항상 포함되지만, 오프라인 심사 APK에는 타입이 아예 없다. 프리팹에 넣으면 그 빌드에서 Missing Script가 된다.
 
 기본 한글 폰트는 `Assets/Resources/PixelRoad/Fonts/Galmuri11 SDF.asset`이다. 동적 TMP 폰트이므로 한글 데이터가 추가되어도 런타임에 글리프를 생성하며, 원본 `Galmuri11.ttf`와 함께 유지해야 한다.
 (기획 기준 폰트는 Pretendard이지만 아직 프로젝트에 없다. 도입 시 TMP 폰트 에셋을 새로 굽고 프리팹의 `TMP_Text.font`를 교체한다.)
@@ -78,8 +79,16 @@ Loading.unity                 MapScene.unity
 | active | `#FFFFFF` | 쓸 수 있지만 현재 탭은 아님 |
 | deserbled | `#8E8E8E` | 조건을 만족하지 못해 못 쓰는 탭 |
 
-- **AI탐험리포트**: 해금 랜드마크가 1개 이상이면 활성. 마지막 리포트 요청 시점(`ReportStateStore.LastReportedCount`, PlayerPrefs)과 현재 해금 개수가 다르면 느낌표 뱃지를 켠다. 리포트 요청 기능이 붙으면 요청 성공 후 `ReportStateStore.SetLastReportedCount(...)`를 호출하면 뱃지가 꺼진다.
-- **AR**: 현재는 항상 비활성이다. AR 반경 판정이 붙으면 `GnbView.SetInteractable(GnbTab.Ar, ...)`로 켜고, 탭 동작은 `PixelRoadApp.HandleGnbTabSelected`의 `GnbTab.Ar` 분기(`view.OnClickARBtn()`)에 연결한다.
+- **AI탐험리포트**: **항상 활성**이다. 해금이 0건이면 리포트 화면이 `탐험 기록이 없습니다` 상태로 열린다. 뱃지는 `ReportStateStore.HasUnreadUpdate`(분석이 갱신됐는데 아직 리포트 화면을 열지 않음)일 때만 켜지고, 탭을 여는 순간 `MarkUpdateSeen()`으로 꺼진다.
+- **AR**: `PixelRoadApp.UpdateArAvailability()`가 위치 갱신마다(10 m 이상 움직였거나 선택이 바뀌었을 때만) 다시 판정한다. AR 허용 반경은 랜드마크마다 `ARConfig.arDisplayRadiusMeters + 그 랜드마크의 visitRadius`다.
+  - 허용 반경 안에 랜드마크가 하나도 없으면 비활성.
+  - 랜드마크를 선택한 상태라면 **그 랜드마크**가 허용 반경 밖일 때 비활성. 선택을 들고 AR로 넘어가면 대상이 없다고 판단해 AR이 곧바로 종료되기 때문이다.
+  - 첫 위치를 받기 전에는 판단할 수 없으므로 잠가 둔다.
+  - 잠긴 AR 탭을 누르면 지도 위에 `랜드마크 근처에서 사용할 수 있습니다`가 3초 동안 뜬다(`GnbView.TabBlocked` → `PixelRoadApp.HandleGnbTabBlocked`).
+
+> **탭의 사용 가능 여부와 `Button.interactable`은 별개다.** 못 쓰는 탭도 클릭은 받아야 왜 못 쓰는지 알려 줄 수 있어서,
+> `GnbView`는 `Button.interactable`을 항상 켜 두고 사용 가능 여부를 `tabEnabled`로만 관리한다(색으로 드러난다).
+> 프리팹에서 GNB 버튼의 `Interactable` 체크를 끄면 클릭이 삼켜져 안내가 뜨지 않는다.
 
 ## 현재 위치 추적
 
@@ -93,10 +102,13 @@ Loading.unity                 MapScene.unity
 와이어프레임 `도감_수집률 버전` / `도감_카드클릭` 기준이다. `CodexView`가 전체를 관리한다.
 
 - **전체 화면**이지만 하단 GNB는 덮지 않는다. `CodexPanel`의 아래 오프셋이 `GnbHeight`(227)다.
-- **상단 필터**: `landmarks.json`의 `category` 값으로 칩을 만든다. 데이터에 있는 값만 칩이 생기고, `전체`가 맨 앞이다. 표시 순서는 `CodexView.CategoryOrder`(역사 → 문화 → 교통 → 공공 → 테스트)를 따르며, 여기 없는 값은 뒤에 붙는다.
+- **상단 필터**: `landmarks.json`의 `category` 값으로 칩을 만든다. 데이터에 있는 값만 칩이 생기고, `전체`가 맨 앞이다. 표시 순서는 `SpotCategory.DisplayOrder`(역사 → 문화 → 교통 → 공공 → 테스트)를 따르며, 여기 없는 값은 뒤에 붙는다. 데이터에 남아 있는 영문 표기(`station`, `test` 등)는 `SpotCategory.Normalize()`가 같은 칩으로 합쳐 준다(마커 아이콘 키는 원본 `category`로 정해지므로 영향이 없다).
 - **카드**: 좌상단 태그는 `collectionTitle`, 아래로 이미지 · 이름 · 한 줄 설명. 잠긴 항목은 이름·설명이 `???`이고 이미지 위에 노란 자물쇠가 뜬다.
 - **하단 수집률**: 칸 20개를 프리팹에 미리 만들어 두고 런타임은 색만 바꾼다. 채워진 칸 수가 바뀔 때만 다시 칠한다.
-- **카드 상세**: 카드를 누르면 `CardDetail`이 도감 위에 겹쳐 뜬다. 어두운 배경 아무 곳이나 누르면 닫힌다. `뒷면 보기 >`는 `shortDescription` ↔ `history`를 뒤집고, `360°` 버튼은 `view360Image`가 있는 랜드마크에서만 보인다. 잠긴 카드는 상세가 열리지 않는다.
+- **카드 상세**: 카드를 누르면 `CardDetail`이 도감 위에 겹쳐 뜬다. 어두운 배경 아무 곳이나 누르면 닫힌다. `뒷면 보기 >`는 `shortDescription` ↔ `history`를 뒤집고, `360°` 버튼은 `view360Image`가 있는 랜드마크에서만 보인다.
+- **잠긴 카드도 상세가 열린다.** 어디로 가야 해금되는지 알려면 앞면의 `→ 지도에서 보기`를 눌릴 수 있어야 하기 때문이다. 대신 내용은 그리드 카드와 같은 수준으로 가린다 — 이름만 남기고 설명은 `???`, 이미지는 대체 이미지에 잠금 틴트, `뒷면 보기 ›`와 `360°` 버튼은 감춘다. 가리는 일은 `CodexDetailView.Show(definition, sprite, unlocked)`가 맡는다.
+  - 지도 배너의 `카드 보기`는 예전대로 해금된 랜드마크에서만 눌린다. 배너는 이미 지도 위라 `지도에서 보기`가 할 일이 없다.
+- **카드 앞면의 `지도에서 보기`**: `CodexDetailView.mapButton` → `CodexView.DetailMapRequested` → `PixelRoadApp.FocusOnSpot(landmarkId)` → `PixelRoadRuntimeView.FocusOnSpot()`. 카드·도감·리포트를 모두 접고 지도 탭으로 돌아가 그 랜드마크를 중심에 두고 선택 상태로 만든다. 위치 추적은 끊기므로 우하단 재추적 버튼이 나타난다.
 
 ## 랜드마크 배너와 선택
 
@@ -115,8 +127,12 @@ Loading.unity                 MapScene.unity
 | `Gnb` 배경 | 210 | 지도가 비쳐 보인다 |
 | `MapAttribution` | 150 | **오른쪽 맨 아래**(-12, 12). GNB 다음 형제라 GNB 위에 그려진다 |
 
-`CodexPanel` · `CardDetail` · `QuitDialog`는 내용을 읽는 화면이라 불투명하게 둔다.
-형제 순서(= 그리는 순서)는 `MapViewport → LandmarkBanner → RecenterButton → Gnb → MapAttribution → CodexPanel → CardDetail → QuitDialog`다.
+`CodexPanel` · `ReportPanel` · `CardDetail` · `QuitDialog` · `UnlockDialog`는 내용을 읽는 화면이라 불투명하게 둔다.
+형제 순서(= 그리는 순서)는 `MapViewport → LandmarkBanner → RecenterButton → Gnb → MapAttribution → CodexPanel →
+ReportPanel → CardDetail → QuitDialog → UnlockDialog`다(`EventSystem`이 index 0).
+
+`CardDetail` · `QuitDialog` · `UnlockDialog` · `ReportPanel`은 열릴 때 `SetAsLastSibling()`을 부르므로 형제 순서는
+초기값일 뿐이고 실제로는 마지막에 열린 창이 맨 위에 온다. `CodexPanel`과 `ReportPanel`은 서로 배타적으로 열린다.
 
 ## 주의 사항
 
@@ -150,6 +166,100 @@ Loading.unity                 MapScene.unity
 도감 카드·상세의 이미지는 마커와 별개로 `landmarks.json`의 `thumbnail`만 따른다. 썸네일 파일이 없거나 아직 해금하지 않은 랜드마크는 `map_config.placeholderThumbnailName`(기본 `placeholder`) 이미지로 대체된다.
 
 `default.png`와 `solid.png`는 예전 프리팹 빌더가 한 번 구워 둔 에셋이다. 지금은 생성 코드가 없으니 지우지 말고, 교체할 때는 같은 이름으로 덮어쓴다.
+
+## AI 리포트 · 해금 알림 화면
+
+`PixelRoadUIRoot.prefab`에 만들어져 있고 참조도 모두 연결돼 있다. 기존 `CodexPanel` · `QuitDialog` · `CardDetail`과
+같은 규칙을 따른다 — **컴포넌트는 껐다 켜는 오브젝트 자신에 붙고 `root`도 자기 자신을 가리키며, 프리팹에는 비활성으로 저장한다.**
+
+### `UnlockDialog` — 해금 알림 (`UnlockDialogView`)
+
+`QuitDialog`를 복제해 만들었으므로 색·폰트·스프라이트가 종료 확인 창과 같다. 캔버스 **맨 마지막 형제**라
+지도·도감·리포트·카드 상세 어디에 있든 그 위를 덮는다. 열릴 때 `SetAsLastSibling()`도 한 번 더 부른다.
+
+```text
+UnlockDialog      [inactive]  ← UnlockDialogView + root(자기 자신)
+├─ Dimmer                     ← dimmer   (뒤 화면 터치 차단)
+└─ Panel                      (840 × 460, 화면 중앙)
+   └─ Surface
+      ├─ Title                ← titleText          ("랜드마크 발견!" 고정)
+      ├─ Name                 ← landmarkNameText   (런타임이 "[전철역]" 형태로 채움)
+      └─ ConfirmButton        ← confirmButton      (아래쪽 가로 꽉 채움)
+         └─ Label             ("확인")
+```
+
+연속 해금은 큐에 쌓여 `확인`을 누를 때마다 하나씩 나온다. `확인`을 눌러도 상단 배너의 선택 상태는 그대로 남는다.
+
+### `ReportPanel` — AI 탐험 리포트 (`ReportView`)
+
+`CodexPanel`과 같은 자리·같은 크기(하단 `GnbHeight` 227px를 비움)다. 둘은 서로 배타적으로 열린다.
+카드 네 장은 `Content`의 `VerticalLayoutGroup` + `ContentSizeFitter`로 쌓이고, 상태에 따라 켜고 끄기만 한다.
+
+```text
+ReportPanel       [inactive]      ← ReportView + root(자기 자신), 배경 #292319
+├─ Title                          ("AI 탐험 리포트")
+├─ Scroll                         ← scroll (ScrollRect, 세로만)
+│  └─ Viewport                    (RectMask2D)
+│     └─ Content                  (VerticalLayoutGroup + ContentSizeFitter)
+│        ├─ EmptyCard             ← emptyCard          (탐험 기록 없음)
+│        │  ├─ Message            ("탐험 기록이 없습니다")
+│        │  └─ ExploreButton      ← exploreButton      ("→ 지도에서 탐험하기")
+│        ├─ RecordCard            ← recordCard         (카드1 · 나의 탐험 기록)
+│        │  ├─ HeaderBand > Label ("나의 탐험 기록")
+│        │  ├─ VisitedPrefix      ("현재까지" 고정)
+│        │  ├─ VisitedCount       ← visitedCountText   (숫자만)
+│        │  ├─ VisitedSuffix      ("곳을 탐험했어요!" 고정)
+│        │  └─ CategoryRow        (HorizontalLayoutGroup)
+│        │     ├─ Cell_역사   > Count  ← categoryCountTexts[0]
+│        │     ├─ Cell_문화   > Count  ← categoryCountTexts[1]
+│        │     ├─ Cell_교통   > Count  ← categoryCountTexts[2]
+│        │     ├─ Cell_공공   > Count  ← categoryCountTexts[3]
+│        │     └─ Cell_테스트 > Count  ← categoryCountTexts[4]
+│        ├─ AnalysisCard          ← analysisCard       (카드2 · AI 탐험 분석)
+│        │  ├─ HeaderBand > Label ("AI 탐험 분석")
+│        │  ├─ NpcPortrait        (NPC 픽셀 캐릭터 자리 — 지금은 placeholder)
+│        │  ├─ Quote              ("흠... 당신의 탐험 기록을 살펴봤어요" 고정)
+│        │  ├─ AnalysisText       ← analysisText
+│        │  ├─ DoneBadge          ← analysisDoneBadge  ("AI 분석 완료 ✓")
+│        │  └─ RetryButton        ← retryButton        (분석 실패했을 때만 켜짐)
+│        └─ RecommendCard         ← recommendCard      (카드3 · 다음 탐험 추천)
+│           ├─ HeaderBand > Label ("다음 탐험 추천")
+│           ├─ NpcPortrait
+│           ├─ Quote              ("다음은 이곳을 탐험해 보는 건 어떨까요?" 고정)
+│           ├─ Name               ← recommendNameText
+│           ├─ Reason             ← recommendReasonText
+│           └─ MapButton          ← recommendMapButton ("→ 지도에서 보기")
+└─ Toast          [inactive]      ← toast
+   └─ Label                       ← toastText
+```
+
+- `categoryCountTexts`는 **배열 순서가 곧 카테고리**다(`SpotCategory.DisplayOrder`). 순서가 어긋나면 엉뚱한 칸에
+  숫자가 들어가고, 개수가 5개가 아니면 `ValidateReferences()`가 막는다.
+- `visitedCountText`에는 숫자만 들어간다. `현재까지` / `곳을 탐험했어요!` 는 좌우 고정 텍스트다.
+- 토스트는 스크롤 밖(`ReportPanel` 직속)에 둔다. 분석중에는 계속 떠 있고, 갱신 완료 토스트는 3초 뒤 저절로 꺼진다
+  (시간은 `map_config`의 `reportToastAutoHideSeconds`).
+- 분석은 리포트 화면을 닫아 둔 채로도 끝난다. 그때는 코루틴을 못 돌리므로 완료 토스트를 띄워만 두고,
+  화면을 여는 순간부터 3초를 센다. 사용자가 못 본 토스트가 조용히 사라지지 않는다.
+
+### `CardDetail/Panel/Front/MapButton` — 카드 앞면의 지도 버튼
+
+`FlipButton`을 복제해 같은 줄 왼쪽(40, -1036 / 330 × 56)에 두었다. `CodexDetailView.mapButton`에 연결돼 있다.
+
+```text
+CardDetail > Panel > Front
+├─ ImageFrame / CollectionBadge / Name / Description
+├─ MapButton                  ← mapButton   ("→ 지도에서 보기")
+└─ FlipButton                 ← flipButton  ("뒷면 보기 ›")
+```
+
+### 아직 남은 에셋
+
+| 자리 | 지금 | 필요한 것 |
+|---|---|---|
+| `AnalysisCard/NpcPortrait`, `RecommendCard/NpcPortrait` | `Icons/placeholder.png` | NPC 픽셀 캐릭터 |
+| 카드 `HeaderBand` | 글자만 | 밴드 아이콘 3종(캐리어 / 돋보기 / 나침반 등) |
+
+동작에는 지장이 없으므로 에셋이 준비되면 `Image.sprite`만 갈아 끼우면 된다.
 
 ## 메뉴
 

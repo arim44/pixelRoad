@@ -42,13 +42,6 @@ namespace PixelRoad.Data
         [Tooltip("landmarks.json 의 visitRadius 가 비었거나 0 이하일 때 적용할 기본 방문 반경(m).")]
         public float 기본해금반경미터 = 50f;
 
-        [Header("픽셀 필터")]
-        [Tooltip("픽셀 필터의 최초 기본값. 사용자가 한 번이라도 토글하면 저장된 값이 우선한다.")]
-        public bool 픽셀필터기본값 = false;
-
-        [Tooltip("픽셀 모드에서 지도를 1/N 크기로 그린 뒤 점 샘플링으로 확대하는 배수. 클수록 거칠어지고 렌더 비용은 줄어든다. UI와 마커는 영향받지 않는다.")]
-        public int 픽셀블록크기 = 4;
-
         [Header("마커 · 아이콘")]
         [Tooltip("지도 위 랜드마크 마커 한 변의 크기(UI px, 기준 해상도 1080x1920).")]
         public int 랜드마크마커크기픽셀 = 56;
@@ -72,12 +65,6 @@ namespace PixelRoad.Data
         public string 사용자아이콘이름 = "user";
 
         [Header("라이브 벡터 지도")]
-        [Tooltip("네트워크 벡터 타일 지도 사용 여부. 끄면 지도가 표시되지 않고 안내 문구만 나온다.")]
-        public bool 라이브벡터지도사용 = true;
-
-        [Tooltip("릴리스 빌드에서도 지도를 허용할지. 끄면 에디터·개발 빌드에서만 지도가 동작한다. 켜려면 PIXELROAD_LIVE_VECTOR_MAP 스크립팅 심볼도 필요하다.")]
-        public bool 릴리스빌드에서지도허용 = false;
-
         [Tooltip("타일 제공자 식별자. 캐시 폴더 구분과 로그에 쓰인다.")]
         public string 타일제공자ID = "osm-shortbread-development";
 
@@ -127,6 +114,19 @@ namespace PixelRoad.Data
         [Tooltip("이 거리(m) 이상 움직였을 때만 위치 갱신을 받는다.")]
         public float 위치갱신최소이동미터 = 3f;
 
+        [Header("AI 탐험 리포트")]
+        [Tooltip("리포트 분석을 요청할 주소(POST). 비워 두면 서버를 부르지 않고 임시 응답으로 동작한다. 예: https://example.com/api/report")]
+        public string 리포트API주소 = "";
+
+        [Tooltip("리포트 응답을 기다리는 최대 시간(초).")]
+        public int 리포트응답대기초 = 20;
+
+        [Tooltip("임시 응답으로 동작할 때 흉내 낼 지연(초). 분석중 화면을 눈으로 확인하려고 둔다.")]
+        public float 리포트목지연초 = 1.5f;
+
+        [Tooltip("갱신 완료 토스트가 저절로 사라지기까지의 시간(초).")]
+        public float 리포트토스트유지초 = 3f;
+
         [Header("에디터 시뮬레이션 (빌드 영향 없음)")]
         [Tooltip("에디터 시뮬레이션 시작 위도. 앱 시작 시 지도 중심으로도 쓰인다.")]
         public double 에디터시작위도 = 37.4969698129663;
@@ -154,9 +154,6 @@ namespace PixelRoad.Data
             };
             config.defaultUnlockRadiusMeters = 기본해금반경미터;
 
-            config.enablePixelFilter = 픽셀필터기본값;
-            config.pixelBlockSize = 픽셀블록크기;
-
             config.spotMarkerPixelSize = 랜드마크마커크기픽셀;
             config.userMarkerPixelSize = 사용자마커크기픽셀;
             config.markerTapMinimumPixelSize = 마커최소터치크기픽셀;
@@ -165,8 +162,6 @@ namespace PixelRoad.Data
             config.placeholderThumbnailName = 도감대체이미지이름;
             config.userIconName = 사용자아이콘이름;
 
-            config.enableLiveVectorMap = 라이브벡터지도사용;
-            config.allowLiveVectorMapInRelease = 릴리스빌드에서지도허용;
             config.vectorTileProviderId = 타일제공자ID;
             config.vectorTileSchema = 타일스키마;
             config.vectorTileUrlTemplate = 타일URL템플릿;
@@ -184,6 +179,11 @@ namespace PixelRoad.Data
 
             config.desiredAccuracyMeters = 목표GPS정확도미터;
             config.locationUpdateDistanceMeters = 위치갱신최소이동미터;
+
+            config.reportApiUrl = (리포트API주소 ?? string.Empty).Trim();
+            config.reportRequestTimeoutSeconds = 리포트응답대기초;
+            config.reportMockDelaySeconds = 리포트목지연초;
+            config.reportToastAutoHideSeconds = 리포트토스트유지초;
 
             config.editorStartLatitude = 에디터시작위도;
             config.editorStartLongitude = 에디터시작경도;

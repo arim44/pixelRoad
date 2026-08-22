@@ -31,19 +31,6 @@ namespace PixelRoad.Data
         public float defaultUnlockRadiusMeters = 50f;
 
         // ---------------------------------------------------------------
-        // 픽셀 필터
-        // ---------------------------------------------------------------
-
-        /// <summary>픽셀 필터의 최초 기본값. 사용자가 토글하면 PlayerPrefs 값이 우선한다.</summary>
-        public bool enablePixelFilter = false;
-
-        /// <summary>
-        /// 픽셀 모드에서 지도 RenderTexture를 1/N 크기로 렌더한 뒤 점 샘플링으로 확대하는 배수.
-        /// 클수록 거칠어지고 렌더 비용은 줄어든다. UI와 마커는 이 효과를 받지 않는다.
-        /// </summary>
-        public int pixelBlockSize = 4;
-
-        // ---------------------------------------------------------------
         // 마커 · 아이콘
         // ---------------------------------------------------------------
 
@@ -81,19 +68,6 @@ namespace PixelRoad.Data
         // ---------------------------------------------------------------
         // 라이브 벡터 지도
         // ---------------------------------------------------------------
-
-        /// <summary>
-        /// 라이브 벡터 지도(네트워크 타일) 사용 여부.
-        /// 정적 지도 폴백을 제거했으므로 false로 두면 지도가 아예 표시되지 않고 안내 문구만 나온다.
-        /// </summary>
-        public bool enableLiveVectorMap = true;
-
-        /// <summary>
-        /// 릴리스 빌드에서도 라이브 벡터 지도를 허용할지.
-        /// false면 에디터·개발 빌드에서만 지도가 동작한다(컴플라이언스 게이트, docs/CONTEST_COMPLIANCE.md 참고).
-        /// 릴리스에서 지도를 쓰려면 이 값을 true로 두고 PIXELROAD_LIVE_VECTOR_MAP 스크립팅 심볼도 정의해야 한다.
-        /// </summary>
-        public bool allowLiveVectorMapInRelease = false;
 
         /// <summary>타일 제공자 식별자. 캐시 폴더 구분과 로그에 쓰인다.</summary>
         public string vectorTileProviderId = "osm-shortbread-development";
@@ -149,6 +123,31 @@ namespace PixelRoad.Data
 
         /// <summary>이 거리(m) 이상 움직였을 때만 위치 갱신을 받는다.</summary>
         public float locationUpdateDistanceMeters = 3f;
+
+        // ---------------------------------------------------------------
+        // AI 탐험 리포트
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// 리포트 분석을 요청할 주소(POST). 비어 있으면 서버를 부르지 않고 임시(목) 응답을 만들어 쓴다.
+        /// 예: https://example.com/api/report
+        /// </summary>
+        public string reportApiUrl = string.Empty;
+
+        /// <summary>리포트 응답을 기다리는 최대 시간(초).</summary>
+        public int reportRequestTimeoutSeconds = 20;
+
+        /// <summary>임시 응답으로 동작할 때 흉내 낼 지연(초). 분석중 화면을 눈으로 확인하려고 둔다.</summary>
+        public float reportMockDelaySeconds = 1.5f;
+
+        /// <summary>갱신 완료 토스트가 저절로 사라지기까지의 시간(초).</summary>
+        public float reportToastAutoHideSeconds = 3f;
+
+        /// <summary>실제 서버로 요청할 수 있는 상태인지.</summary>
+        public bool HasReportEndpoint
+        {
+            get { return !string.IsNullOrWhiteSpace(reportApiUrl); }
+        }
 
         // ---------------------------------------------------------------
         // 에디터 시뮬레이션 (빌드에는 영향 없음)
