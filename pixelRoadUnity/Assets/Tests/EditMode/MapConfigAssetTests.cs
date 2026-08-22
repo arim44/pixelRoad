@@ -37,7 +37,6 @@ namespace PixelRoad.Tests.EditMode
                 "The landmark JSON path must point at an existing Resources asset.");
 
             Assert.That(ReadField<float>(config, "defaultUnlockRadiusMeters"), Is.GreaterThan(0f));
-            Assert.That(ReadField<int>(config, "pixelBlockSize"), Is.GreaterThan(0));
 
             int markerSize = ReadField<int>(config, "spotMarkerPixelSize");
             Assert.That(markerSize, Is.GreaterThan(0));

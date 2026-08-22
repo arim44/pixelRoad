@@ -60,8 +60,14 @@ namespace PixelRoad.UI
         [Header("Codex")]
         [SerializeField] private CodexView codexView;
 
+        [Header("Report")]
+        [SerializeField] private ReportView reportView;
+
         [Header("Quit dialog")]
         [SerializeField] private QuitDialogView quitDialog;
+
+        [Header("Unlock dialog")]
+        [SerializeField] private UnlockDialogView unlockDialog;
 
         [Header("Dynamic prefabs")]
         [SerializeField] private LandmarkMarkerView landmarkMarkerPrefab;
@@ -104,6 +110,12 @@ namespace PixelRoad.UI
         public GnbView Gnb => gnb;
         public CodexView CodexView => codexView;
 
+        /// <summary>AI 탐험 리포트 화면. 도감과 마찬가지로 지도 위를 덮는 패널이다.</summary>
+        public ReportView ReportView => reportView;
+
+        /// <summary>랜드마크를 처음 해금했을 때 뜨는 `랜드마크 발견!` 창.</summary>
+        public UnlockDialogView UnlockDialog => unlockDialog;
+
         /// <summary>뒤로가기로 뜨는 종료 확인 창.</summary>
         public QuitDialogView QuitDialog => quitDialog;
         public LandmarkMarkerView LandmarkMarkerPrefab => landmarkMarkerPrefab;
@@ -137,11 +149,15 @@ namespace PixelRoad.UI
             Require(attributionText, nameof(attributionText));
             Require(gnb, nameof(gnb));
             Require(codexView, nameof(codexView));
+            Require(reportView, nameof(reportView));
             Require(quitDialog, nameof(quitDialog));
+            Require(unlockDialog, nameof(unlockDialog));
             Require(landmarkMarkerPrefab, nameof(landmarkMarkerPrefab));
             gnb.ValidateReferences();
             codexView.ValidateReferences();
+            reportView.ValidateReferences();
             quitDialog.ValidateReferences();
+            unlockDialog.ValidateReferences();
         }
 
         /// <summary>참조가 비었으면 어느 필드인지 이름을 담아 예외를 던진다.</summary>

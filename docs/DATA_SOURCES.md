@@ -72,7 +72,7 @@ Because the new points reach Pyeongtaek in the south and western Bupyeong, `map_
 - Smooth mode renders the vector map to a map-only full-resolution RenderTexture. Pixel mode renders that same map layer to a reduced RenderTexture with point sampling. Markers, attribution, and the rest of the UI stay outside both outputs.
 - This validation target is not the approved contest submission provider. The production provider, endpoint, service plan, cache policy, and required attribution remain undecided until the official contest rules and provider terms are available.
 - The MVT/PBF decoder, triangulation, mesh builder, tile selection, and cache are implemented in project source; no external vector-tile decoding or rendering package was added.
-- `allowLiveVectorMapInRelease` remains `false`, and non-development builds compile out the live requester unless `PIXELROAD_LIVE_VECTOR_MAP` is also deliberately defined. Both release gates must be approved for live submission use.
+- Live tiles are on in every build; `enableLiveVectorMap` in `map_config.json` is the only runtime switch. The release-only gate (`allowLiveVectorMapInRelease`) was removed on 2026-08-22 because it silently produced map-less release APKs, and the offline-review flavor (`PIXELROAD_OFFLINE_REVIEW`) was removed the same day for the same reason. There is now a single Android build and `INTERNET` is always declared.
 - The static PNG fallback was removed on 2026-08-08, so there is no offline map path. If contest rules disallow external APIs or an internet-dependent demo, a map source must be re-added before submission.
 - Do not use `tile.openstreetmap.org` or Overpass as a drag-driven production tile backend.
 

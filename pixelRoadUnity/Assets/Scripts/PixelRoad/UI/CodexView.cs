@@ -22,9 +22,6 @@ namespace PixelRoad.UI
         private static readonly Color32 SegmentFilled = new Color32(200, 58, 45, 255);
         private static readonly Color32 SegmentEmpty = new Color32(214, 203, 180, 255);
 
-        /// <summary>칩을 데이터에서 만들 때 쓰는 우선 순서. 여기 없는 category는 뒤에 붙는다.</summary>
-        private static readonly string[] CategoryOrder = { "역사", "문화", "교통", "공공", "테스트" };
-
         [Header("Panel")]
         [SerializeField] private GameObject root;
         [SerializeField] private TMP_Text progressText;
@@ -61,6 +58,9 @@ namespace PixelRoad.UI
         public CodexDetailView Detail => detail;
         public bool IsVisible => root != null && root.activeSelf;
 
+        /// <summary>카드 앞면의 `지도에서 보기`를 눌렀을 때. 도감을 닫고 지도를 옮기는 일은 바깥이 맡는다.</summary>
+        public event Action<SpotDefinition> DetailMapRequested;
+
         /// <summary>직렬화 참조가 하나라도 비어 있으면 즉시 예외를 던져 프리팹 설정 실수를 잡는다.</summary>
         public void ValidateReferences()
         {
@@ -90,6 +90,7 @@ namespace PixelRoad.UI
         public void Initialize()
         {
             detail.Initialize(detail.Hide);
+            detail.MapRequested += definition => DetailMapRequested?.Invoke(definition);
 
             // 수집률 바의 칸은 프리팹에 미리 만들어 둔 것을 그대로 쓴다. 런타임에 늘리지 않는다.
             rateSegments.Clear();
@@ -128,11 +129,11 @@ namespace PixelRoad.UI
         {
             LandmarkCardView view = Instantiate(cardPrefab, content, false);
             view.gameObject.name = "Codex_" + state.Definition.Id;
-            view.Button.onClick.AddListener(() => ShowDetail(state, thumbnail, onSelected));
+            view.Button.onClick.AddListener(() => ShowDetail(state, thumbnail, placeholder, onSelected));
             view.Icon.raycastTarget = false;
             cards[state.Definition.Id] = new CardBinding(
                 view,
-                state.Definition.Category,
+                SpotCategory.Normalize(state.Definition.Category),
                 thumbnail,
                 placeholder);
             UpdateCard(state);
@@ -192,13 +193,16 @@ namespace PixelRoad.UI
             }
         }
 
-        /// <summary>수록된 랜드마크의 category로 필터 칩을 만든다. 데이터에 없는 칩은 만들지 않는다.</summary>
+        /// <summary>
+        /// 수록된 랜드마크의 category로 필터 칩을 만든다. 데이터에 없는 칩은 만들지 않는다.
+        /// 표기가 영문으로 남아 있는 항목(station 등)은 <see cref="SpotCategory"/>가 같은 칩으로 합쳐 준다.
+        /// </summary>
         public void BuildFilters(IList<SpotRuntimeState> spots)
         {
             List<string> categories = new List<string>();
             for (int index = 0; index < spots.Count; index++)
             {
-                string category = spots[index].Definition.Category;
+                string category = SpotCategory.Normalize(spots[index].Definition.Category);
                 if (!string.IsNullOrEmpty(category) && !categories.Contains(category))
                 {
                     categories.Add(category);
@@ -215,11 +219,11 @@ namespace PixelRoad.UI
             ApplyFilter(AllCategory);
         }
 
-        /// <summary>CategoryOrder에 적힌 순서를 우선 따르고, 목록에 없는 category는 이름순으로 뒤에 둔다.</summary>
+        /// <summary>SpotCategory.DisplayOrder 순서를 우선 따르고, 목록에 없는 category는 이름순으로 뒤에 둔다.</summary>
         private static int CompareCategories(string left, string right)
         {
-            int leftRank = Array.IndexOf(CategoryOrder, left);
-            int rightRank = Array.IndexOf(CategoryOrder, right);
+            int leftRank = SpotCategory.IndexOf(left);
+            int rightRank = SpotCategory.IndexOf(right);
             if (leftRank < 0)
             {
                 leftRank = int.MaxValue;
@@ -271,20 +275,27 @@ namespace PixelRoad.UI
         /// </summary>
         public void ShowDetail(SpotRuntimeState state, Sprite thumbnail)
         {
-            ShowDetail(state, thumbnail, null);
+            ShowDetail(state, thumbnail, null, null);
         }
 
-        /// <summary>선택 콜백을 먼저 알린 뒤 해금된 랜드마크만 상세 팝업에 채워 띄운다.</summary>
-        private void ShowDetail(SpotRuntimeState state, Sprite thumbnail, Action<SpotRuntimeState> onSelected)
+        /// <summary>
+        /// 선택 콜백을 먼저 알린 뒤 상세 팝업을 띄운다.
+        ///
+        /// 잠긴 랜드마크도 연다. 어디로 가야 해금되는지 알려면 앞면의 `지도에서 보기`를 눌릴 수 있어야 하기 때문이다.
+        /// 내용을 가리는 일은 <see cref="CodexDetailView.Show(SpotDefinition, Sprite, bool)"/>가 맡고,
+        /// 여기서는 잠긴 카드에 실제 썸네일 대신 대체 이미지를 넘긴다.
+        /// </summary>
+        private void ShowDetail(
+            SpotRuntimeState state,
+            Sprite thumbnail,
+            Sprite placeholder,
+            Action<SpotRuntimeState> onSelected)
         {
             onSelected?.Invoke(state);
-            if (!state.IsUnlocked)
-            {
-                // 잠긴 랜드마크는 상세 내용을 감춘다. 카드에서 이미 ??? 로 보여 주고 있다.
-                return;
-            }
 
-            detail.Show(state.Definition, thumbnail);
+            bool unlocked = state.IsUnlocked;
+            Sprite image = unlocked ? (thumbnail ?? placeholder) : placeholder;
+            detail.Show(state.Definition, image, unlocked);
         }
 
         /// <summary>

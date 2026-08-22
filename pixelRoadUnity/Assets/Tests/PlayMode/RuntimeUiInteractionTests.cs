@@ -14,22 +14,15 @@ namespace PixelRoad.Tests.PlayMode
         private const string SpotDefinitionTypeName = "PixelRoad.Data.SpotDefinition, Assembly-CSharp";
         private const string SpotRuntimeStateTypeName = "PixelRoad.Data.SpotRuntimeState, Assembly-CSharp";
         private const string AppTypeName = "PixelRoad.Runtime.PixelRoadApp";
-        private const string PixelModePreferenceKey = "PixelRoad.MapPixelMode";
 
         private Type runtimeViewType;
         private object runtimeView;
         private GameObject canvasObject;
         private GameObject eventSystemObject;
-        private bool hadPixelPreference;
-        private int previousPixelPreference;
 
         [UnitySetUp]
         public IEnumerator SetUp()
         {
-            hadPixelPreference = PlayerPrefs.HasKey(PixelModePreferenceKey);
-            previousPixelPreference = PlayerPrefs.GetInt(PixelModePreferenceKey, 0);
-            PlayerPrefs.SetInt(PixelModePreferenceKey, 0);
-
             // 다른 테스트가 남긴 앱 인스턴스를 먼저 제거한다. 앱이 들고 있는 viewport 참조를
             // 남긴 채 아래 Canvas만 지우면 다음 프레임 Update에서 예외가 난다.
             DestroyAllComponentsNamed(AppTypeName);
@@ -52,9 +45,9 @@ namespace PixelRoad.Tests.PlayMode
             runtimeViewType = Type.GetType(RuntimeViewTypeName, true);
             Type configType = Type.GetType(MapConfigTypeName, true);
             object config = Activator.CreateInstance(configType);
-            SetPublicField(config, "enableLiveVectorMap", false);
-            SetPublicField(config, "allowLiveVectorMapInRelease", false);
-            SetPublicField(config, "enablePixelFilter", false);
+            // 라이브 지도는 이제 끌 수 없다(항상 켜짐). 대신 타일 URL을 비워
+            // VectorTileProvider 검증 단계에서 막아, 이 테스트가 네트워크를 타지 않게 한다.
+            SetPublicField(config, "vectorTileUrlTemplate", string.Empty);
 
             MethodInfo create = runtimeViewType.GetMethod(
                 "Create",
@@ -69,10 +62,10 @@ namespace PixelRoad.Tests.PlayMode
             Component bindings = FindComponentNamed(canvasObject, "PixelRoad.UI.PixelRoadUiBindings");
             Assert.That(bindings, Is.Not.Null, "PixelRoadUIRoot.prefab has no PixelRoadUiBindings.");
 
-            // 정적 지도 폴백이 없으므로, 라이브 지도를 끈 구성은 의도적으로 오류 로그를 남긴다.
+            // 정적 지도 폴백이 없으므로, 지도를 쓸 수 없는 구성은 의도적으로 오류 로그를 남긴다.
             LogAssert.Expect(
                 LogType.Error,
-                "[PixelRoad] 라이브 벡터 지도를 사용할 수 없습니다: map_config.json 의 enableLiveVectorMap 이 false 입니다.");
+                "[PixelRoad] 라이브 벡터 지도를 사용할 수 없습니다: Vector tile URL template is empty.");
             runtimeView = create.Invoke(null, new[] { config, bindings });
             Assert.That(runtimeView, Is.Not.Null);
 
@@ -102,16 +95,6 @@ namespace PixelRoad.Tests.PlayMode
                 UnityEngine.Object.Destroy(eventSystemObject);
             }
 
-            if (hadPixelPreference)
-            {
-                PlayerPrefs.SetInt(PixelModePreferenceKey, previousPixelPreference);
-            }
-            else
-            {
-                PlayerPrefs.DeleteKey(PixelModePreferenceKey);
-            }
-
-            PlayerPrefs.Save();
             runtimeView = null;
             yield return null;
         }
@@ -144,7 +127,7 @@ namespace PixelRoad.Tests.PlayMode
             AssertInputActionAssigned(inputModule, "leftClick");
             AssertInputActionAssigned(inputModule, "scrollWheel");
             Assert.That(FindFirstComponentNamed("PixelRoad.Mapping.LiveVectorMapRenderer"), Is.Null,
-                "This regression test must stay network-free when live vector maps are disabled.");
+                "A renderer that fails provider validation must be destroyed, keeping this test network-free.");
             Assert.That((bool)ReadPublicProperty(runtimeView, "IsMapAvailable"), Is.False,
                 "No live map renderer means the view must report the map as unavailable.");
 
@@ -153,13 +136,23 @@ namespace PixelRoad.Tests.PlayMode
                 "The map notice must explain why no map is drawn once the static fallback is gone.");
             Assert.That(ReadChildText(mapNotice.gameObject), Does.Contain("지도를 표시할 수 없습니다"));
 
-            // 와이어프레임의 하단 GNB. 지도/도감은 바로 쓸 수 있고, 리포트와 AR은 조건을 만족하기 전까지 비활성이다.
-            Assert.That(ReadInteractable("MapTab"), Is.True, "The map tab must always be usable.");
-            Assert.That(ReadInteractable("CodexTab"), Is.True, "The codex tab must always be usable.");
-            Assert.That(ReadInteractable("ReportTab"), Is.False,
-                "The AI report tab must start disabled until at least one landmark is unlocked.");
-            Assert.That(ReadInteractable("ArTab"), Is.False,
-                "The AR tab must start disabled until the user is inside an AR radius.");
+            // 와이어프레임의 하단 GNB. 지도·도감·리포트는 항상 쓸 수 있고, AR만 위치 조건을 탄다.
+            // 사용 가능 여부는 GnbView가 따로 들고 있다. Button.interactable 은 늘 켜 두는데,
+            // 그것을 끄면 Unity가 클릭을 삼켜 비활성 탭을 눌렀을 때 안내를 띄울 수 없기 때문이다.
+            Assert.That(ReadInteractable("ArTab"), Is.True,
+                "Every GNB button must stay clickable so blocked taps can explain themselves.");
+
+            Assert.That(ReadTabEnabled("Map"), Is.True, "The map tab must always be usable.");
+            Assert.That(ReadTabEnabled("Codex"), Is.True, "The codex tab must always be usable.");
+            Assert.That(ReadTabEnabled("Report"), Is.True,
+                "The AI report tab is always usable; with no unlocks it shows the empty-record screen.");
+
+            InvokeView("SetArTabAvailable", false);
+            Assert.That(ReadTabEnabled("Ar"), Is.False,
+                "The AR tab must be locked while no landmark is inside the AR radius.");
+            InvokeView("SetArTabAvailable", true);
+            Assert.That(ReadTabEnabled("Ar"), Is.True,
+                "The AR tab must unlock once a landmark is inside the AR radius.");
 
             Transform badge = FindRequiredTransform("Badge");
             Assert.That(badge.gameObject.activeSelf, Is.False,
@@ -237,6 +230,16 @@ namespace PixelRoad.Tests.PlayMode
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             Assert.That(method, Is.Not.Null, "Missing runtime-view method: " + methodName);
             return method.Invoke(runtimeView, arguments);
+        }
+
+        /// <summary>GnbView가 들고 있는 탭 사용 가능 여부를 읽는다. Button.interactable 과는 별개다.</summary>
+        private static bool ReadTabEnabled(string tabName)
+        {
+            Component gnb = FindRequiredComponent("Gnb", "PixelRoad.UI.GnbView");
+            Type tabType = Type.GetType("PixelRoad.UI.GnbTab, Assembly-CSharp", true);
+            MethodInfo method = gnb.GetType().GetMethod("IsInteractable");
+            Assert.That(method, Is.Not.Null);
+            return (bool)method.Invoke(gnb, new object[] { Enum.Parse(tabType, tabName) });
         }
 
         private static bool ReadInteractable(string objectName)
