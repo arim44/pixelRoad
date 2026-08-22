@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using UnityEditor;
-using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
@@ -14,36 +13,11 @@ namespace PixelRoad.Editor
     {
         private const string BuildPathArgument = "-pixelRoadBuildPath";
 
-        /// <summary>
-        /// 오프라인 심사 빌드에만 켜는 스크립팅 심볼. 이 심볼이 있으면 라이브 타일 요청 코드가 컴파일에서 빠지고
-        /// 안드로이드 매니페스트에서 INTERNET 권한도 제거된다. 평소 빌드에는 붙이지 않는다.
-        /// </summary>
-        private const string OfflineReviewSymbol = "PIXELROAD_OFFLINE_REVIEW";
-
         /// <summary>메뉴에서 개발용 APK를 기본 경로에 빌드한다.</summary>
-        [MenuItem("Pixel Road/Build Android Development APK")]
-        public static void BuildAndroidDevelopmentApk()
+        [MenuItem("Pixel Road/Build Android APK")]
+        public static void BuildAndroidApk()
         {
-            string defaultPath = Path.GetFullPath(Path.Combine(
-                Application.dataPath,
-                "..",
-                "..",
-                "Build",
-                "PixelRoad-development.apk"));
-            BuildApk(defaultPath, BuildOptions.Development, "development", false);
-        }
-
-        /// <summary>메뉴에서 오프라인 심사용 APK를 기본 경로에 빌드한다.</summary>
-        [MenuItem("Pixel Road/Build Android Offline Review APK")]
-        public static void BuildAndroidOfflineReviewApk()
-        {
-            string defaultPath = Path.GetFullPath(Path.Combine(
-                Application.dataPath,
-                "..",
-                "..",
-                "Build",
-                "PixelRoad-offline-review.apk"));
-            BuildApk(defaultPath, BuildOptions.None, "offline review", true);
+            BuildApk(DefaultOutputPath(), BuildOptions.Development, "development");
         }
 
         /// <summary>
@@ -55,46 +29,27 @@ namespace PixelRoad.Editor
             string outputPath = ReadArgument(BuildPathArgument);
             if (string.IsNullOrWhiteSpace(outputPath))
             {
-                outputPath = Path.GetFullPath(Path.Combine(
-                    Application.dataPath,
-                    "..",
-                    "..",
-                    "Build",
-                    "PixelRoad-development.apk"));
+                outputPath = DefaultOutputPath();
             }
 
-            BuildApk(outputPath, BuildOptions.Development, "development", false);
+            BuildApk(outputPath, BuildOptions.Development, "development");
         }
 
-        /// <summary>
-        /// Builds a non-development APK with the offline-review symbol on, so the live
-        /// tile requester is compiled out and the manifest ships without INTERNET.
-        /// </summary>
-        public static void BuildAndroidOfflineReviewFromCommandLine()
+        /// <summary>프로젝트 옆 Build 폴더의 기본 APK 경로.</summary>
+        private static string DefaultOutputPath()
         {
-            string outputPath = ReadArgument(BuildPathArgument);
-            if (string.IsNullOrWhiteSpace(outputPath))
-            {
-                outputPath = Path.GetFullPath(Path.Combine(
-                    Application.dataPath,
-                    "..",
-                    "..",
-                    "Build",
-                    "PixelRoad-offline-review.apk"));
-            }
-
-            BuildApk(outputPath, BuildOptions.None, "offline review", true);
+            return Path.GetFullPath(Path.Combine(
+                Application.dataPath,
+                "..",
+                "..",
+                "Build",
+                "PixelRoad.apk"));
         }
 
         /// <summary>
         /// 출력 경로를 검증하고 폴더를 만든 뒤 실제 빌드를 돌린다. 실패하면 예외를 던져 CI가 알아채게 한다.
-        /// <paramref name="offlineReview"/>가 true면 빌드하는 동안만 오프라인 심사 심볼을 켠다.
         /// </summary>
-        private static void BuildApk(
-            string outputPath,
-            BuildOptions buildOptions,
-            string buildLabel,
-            bool offlineReview)
+        private static void BuildApk(string outputPath, BuildOptions buildOptions, string buildLabel)
         {
             if (!outputPath.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
             {
@@ -116,20 +71,7 @@ namespace PixelRoad.Editor
                 target = BuildTarget.Android,
                 options = buildOptions
             };
-            // 심볼은 이 빌드 동안만 바꾸고 끝나면 원래대로 돌려놓는다. 프로젝트 설정에 흔적을 남기지 않기 위해서다.
-            string previousSymbols = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.Android);
-            BuildReport report;
-            try
-            {
-                PlayerSettings.SetScriptingDefineSymbols(
-                    NamedBuildTarget.Android,
-                    ApplySymbol(previousSymbols, OfflineReviewSymbol, offlineReview));
-                report = BuildPipeline.BuildPlayer(options);
-            }
-            finally
-            {
-                PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.Android, previousSymbols);
-            }
+            BuildReport report = BuildPipeline.BuildPlayer(options);
 
             if (report.summary.result != BuildResult.Succeeded)
             {
@@ -140,31 +82,6 @@ namespace PixelRoad.Editor
             Debug.Log(
                 "[PixelRoad] Android " + buildLabel + " APK: " + outputPath
                 + " (" + report.summary.totalSize + " bytes)");
-        }
-
-        /// <summary>세미콜론으로 구분된 심볼 목록에 하나를 넣거나 뺀다. 이미 원하는 상태면 그대로 돌려준다.</summary>
-        private static string ApplySymbol(string symbols, string symbol, bool enabled)
-        {
-            string[] values = (symbols ?? string.Empty).Split(';');
-            System.Collections.Generic.List<string> kept =
-                new System.Collections.Generic.List<string>(values.Length + 1);
-            for (int index = 0; index < values.Length; index++)
-            {
-                string value = values[index].Trim();
-                if (value.Length == 0 || string.Equals(value, symbol, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                kept.Add(value);
-            }
-
-            if (enabled)
-            {
-                kept.Add(symbol);
-            }
-
-            return string.Join(";", kept.ToArray());
         }
 
         /// <summary>Build Settings에 등록된 활성 씬 경로를 순서대로 모은다. 하나도 없으면 예외를 던진다.</summary>

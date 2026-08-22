@@ -40,7 +40,7 @@ UI 작업자는 각 프리팹을 Prefab Mode로 열어 앵커, 크기, 색상, �
 ### 아직 런타임에 만드는 것
 
 - **랜드마크 마커·도감 카드**: `landmarks.json`의 개수만큼 `LandmarkMarker` / `LandmarkCodexCard` 프리팹을 `Instantiate` 한다. 데이터 개수가 정해져 있지 않아 씬에 미리 둘 수 없다.
-- **`LiveVectorMapRenderer`와 벡터 타일**: `MapViewport`에 `AddComponent` 하고, 보이는 타일마다 GameObject·Mesh·Material·RenderTexture를 만든다. 지도 타일 자체가 동적이라 프리팹화할 수 없고, 이 클래스는 `#if !PIXELROAD_OFFLINE_REVIEW`로 감싸져 있어 평소 빌드에는 항상 포함되지만, 오프라인 심사 APK에는 타입이 아예 없다. 프리팹에 넣으면 그 빌드에서 Missing Script가 된다.
+- **`LiveVectorMapRenderer`와 벡터 타일**: `MapViewport`에 `AddComponent` 하고, 보이는 타일마다 GameObject·Mesh·Material·RenderTexture를 만든다. 지도 타일 자체가 동적이라 프리팹화할 수 없으니 프리팹에 넣지 말고 런타임에 붙인다.
 
 기본 한글 폰트는 `Assets/Resources/PixelRoad/Fonts/Galmuri11 SDF.asset`이다. 동적 TMP 폰트이므로 한글 데이터가 추가되어도 런타임에 글리프를 생성하며, 원본 `Galmuri11.ttf`와 함께 유지해야 한다.
 (기획 기준 폰트는 Pretendard이지만 아직 프로젝트에 없다. 도입 시 TMP 폰트 에셋을 새로 굽고 프리팹의 `TMP_Text.font`를 교체한다.)

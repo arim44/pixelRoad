@@ -249,7 +249,6 @@ namespace PixelRoad.UI
         /// </summary>
         private ILiveMapController CreateLiveMapRenderer(out string unavailableReason)
         {
-#if !PIXELROAD_OFFLINE_REVIEW
             LiveVectorMapRenderer renderer = viewport.gameObject.AddComponent<LiveVectorMapRenderer>();
             renderer.ViewChanged += UpdateLiveMarkerPositions;
             renderer.FirstTileReady += OnFirstLiveTileReady;
@@ -269,12 +268,6 @@ namespace PixelRoad.UI
             renderer.FirstTileReady -= OnFirstLiveTileReady;
             UnityEngine.Object.Destroy(renderer);
             return null;
-#else
-            unavailableReason =
-                "오프라인 심사 빌드에는 라이브 지도 요청 코드가 포함되지 않았습니다. "
-                + "PIXELROAD_OFFLINE_REVIEW 스크립팅 심볼을 빼고 다시 빌드하세요.";
-            return null;
-#endif
         }
 
         /// <summary>지도 준비 상태를 화면 안내 문구로 알린다. 사용할 수 없으면 이유를 함께 로그로 남긴다.</summary>

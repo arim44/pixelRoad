@@ -48,8 +48,8 @@ JSON은 주석을 지원하지 않으므로 설명은 이 문서와 `MapConfig.c
 | --- | --- | --- | --- |
 라이브 벡터 지도는 **끌 수 없다.** 켜고 끄는 스위치(`enableLiveVectorMap`)와 릴리스 전용 게이트
 (`allowLiveVectorMapInRelease`)를 모두 제거했고, 지도는 모든 빌드에서 항상 동작한다.
-네트워크를 빼야 하는 오프라인 심사 APK만 `PIXELROAD_OFFLINE_REVIEW` 스크립팅 심볼로 따로 굽는다
-(`Pixel Road > Build Android Offline Review APK` 가 빌드 동안만 심볼을 켠다).
+오프라인 심사용 빌드(`PIXELROAD_OFFLINE_REVIEW`)도 2026-08-22에 없앴으므로 안드로이드 빌드는
+`Pixel Road > Build Android APK` 하나뿐이고 `INTERNET` 권한은 항상 들어간다.
 지도를 못 쓰게 만들려면 타일 제공자 설정이 검증에 걸리게 하는 방법뿐이다(예: `vectorTileUrlTemplate` 를 비움).
 | `vectorTileProviderId` | string | `osm-shortbread-development` | 타일 제공자 식별자. 디스크 캐시 구분과 로그에 쓰인다. |
 | `vectorTileSchema` | string | `shortbread_v1` | 벡터 타일 스키마 이름. 레이어 해석 규칙을 고른다. |
