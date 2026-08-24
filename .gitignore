@@ -1,0 +1,4 @@
+Build/
+
+# dotenv environment variable files
+.env

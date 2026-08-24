@@ -1,0 +1,325 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using PixelRoad.Data;
+using PixelRoad.Geo;
+using PixelRoad.Location;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.XR.ARFoundation;
+
+namespace PixelRoad.AR
+{
+    /// <summary>
+    /// ARScene의 진입점. ARHandoff로 받은 랜드마크/현재 위치를 바탕으로 위치·나침반을 갱신하고,
+    /// 매 프레임 랜드마크별 베어링·거리를 계산해 AROverlayView에 표시를 위임한다.
+    /// </summary>
+    public sealed class ARSceneController : MonoBehaviour
+    {
+        private const string MapSceneName = "MapScene";
+        private const float NoLandmarksTimeoutSeconds = 5f;
+        private const float ToastDisplaySeconds = 3f;
+
+        [SerializeField]
+        private Camera arCamera;
+
+        [SerializeField]
+        private RectTransform overlayRoot;
+
+        [SerializeField]
+        private ARSession arSession;
+
+        private ARConfig config;
+        private AROverlayView view;
+        private ILocationProvider locationProvider;
+        private IHeadingProvider headingProvider;
+        private GeoLocation currentLocation;
+        private float smoothedHeading;
+        private bool hasSmoothedHeading;
+        private bool ready;
+        private float noLandmarksTimer;
+        private bool returningToMap;
+        private Texture2D lastThumbnailTexture;
+        private string lastCaptureUri;
+        private Coroutine toastHideRoutine;
+
+        private IEnumerator Start()
+        {
+            config = ARSceneLauncher.LoadConfig();
+            view = new AROverlayView(overlayRoot, config);
+            view.CaptureRequested += OnCaptureRequested;
+            view.ThumbnailClicked += OnThumbnailClicked;
+            RestoreLastCapture();
+            currentLocation = ARHandoff.InitialLocation;
+
+#if UNITY_EDITOR
+            locationProvider = new SimulatedLocationProvider(currentLocation.Latitude, currentLocation.Longitude);
+            headingProvider = new SimulatedHeadingProvider();
+#else
+            // UnityGpsLocationProvider는 지도 화면과 공유하는 MapConfig를 그대로 받는다(변경하지 않기 위해).
+            // ARScene은 MapConfig에 의존하지 않으므로, ARConfig 값만 옮겨 담은 임시 인스턴스를 만들어 넘긴다.
+            MapConfig gpsConfig = new MapConfig
+            {
+                desiredAccuracyMeters = config.desiredAccuracyMeters,
+                locationUpdateDistanceMeters = config.locationUpdateDistanceMeters
+            };
+            locationProvider = new UnityGpsLocationProvider(gpsConfig);
+            float? seedHeading = ARHandoff.HasInitialHeading ? (float?)ARHandoff.InitialHeadingDegrees : null;
+            headingProvider = new FusedHeadingProvider(arCamera.transform, seedHeading);
+#endif
+            yield return StartCoroutine(locationProvider.Start());
+            headingProvider.Start();
+            ready = true;
+        }
+
+        private void Update()
+        {
+            if (!ready || view == null)
+            {
+                return;
+            }
+
+            if (!IsSessionTrackingOrStarting())
+            {
+                view.SetStatusMessage(BuildSessionStatusMessage());
+                return;
+            }
+
+            view.SetStatusMessage(null);
+
+            locationProvider.Tick(Time.deltaTime);
+            headingProvider.Tick(Time.deltaTime);
+            currentLocation = locationProvider.Current;
+            if (!currentLocation.IsValid)
+            {
+                return;
+            }
+
+            UpdateSmoothedHeading(headingProvider.HeadingDegrees);
+            UpdateLandmarks();
+        }
+
+        private void OnDestroy()
+        {
+            if (view != null)
+            {
+                view.CaptureRequested -= OnCaptureRequested;
+                view.ThumbnailClicked -= OnThumbnailClicked;
+            }
+
+            locationProvider?.Stop();
+            headingProvider?.Stop();
+            DestroyLastThumbnailTexture();
+        }
+
+        /// <summary>이전 세션에 찍어 둔 캡처가 있으면 복원해서 썸네일에 바로 보여준다.</summary>
+        private void RestoreLastCapture()
+        {
+            if (AndroidGalleryExporter.TryLoadCachedCapture(out Texture2D cachedTexture, out string cachedUri))
+            {
+                lastCaptureUri = cachedUri;
+                ShowThumbnail(cachedTexture);
+            }
+        }
+
+        private void OnCaptureRequested()
+        {
+            StartCoroutine(CaptureScreenshotRoutine());
+        }
+
+        private void OnThumbnailClicked()
+        {
+            // Application.OpenURL은 실패해도 예외를 던지지 않는 경우가 많아 "열기 실패 = 원본 삭제됨"으로
+            // 단정할 수 없다. 그래서 열기 실패 시 캐시를 지우던 이전 로직은 제거했다 - 여기서는 토스트만 보여준다.
+            if (!AndroidGalleryExporter.OpenInGallery(lastCaptureUri, out string errorMessage))
+            {
+                ShowToast(string.IsNullOrEmpty(errorMessage) ? "사진을 열 수 없습니다." : "사진을 열 수 없습니다: " + errorMessage);
+            }
+        }
+
+        private void ShowToast(string message)
+        {
+            if (toastHideRoutine != null)
+            {
+                StopCoroutine(toastHideRoutine);
+            }
+
+            view.ShowToast(message);
+            toastHideRoutine = StartCoroutine(HideToastAfterDelay());
+        }
+
+        private IEnumerator HideToastAfterDelay()
+        {
+            yield return new WaitForSeconds(ToastDisplaySeconds);
+            view.HideToast();
+            toastHideRoutine = null;
+        }
+
+        /// <summary>
+        /// 촬영 버튼과 뒤로가기 버튼만 감춘 채 현재 프레임(카메라 패스스루 + 랜드마크 오버레이)을 캡처해 갤러리에 저장하고,
+        /// 다음 실행에서도 복원할 수 있도록 로컬에 캐시한 뒤, 화면 오른쪽 아래에 미리보기 썸네일을 띄운다.
+        /// </summary>
+        private IEnumerator CaptureScreenshotRoutine()
+        {
+            view.SetCaptureUiVisible(false);
+            yield return new WaitForEndOfFrame();
+
+            Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
+            view.SetCaptureUiVisible(true);
+
+            byte[] pngBytes = screenshot.EncodeToPNG();
+            string fileName = "PixelRoad_AR_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".png";
+            string uriString = AndroidGalleryExporter.SaveScreenshot(pngBytes, fileName, config.screenshotGalleryFolder);
+
+            lastCaptureUri = uriString;
+            AndroidGalleryExporter.CacheLastCapture(pngBytes, uriString);
+
+            ShowThumbnail(screenshot);
+        }
+
+        /// <summary>썸네일에 텍스처를 띄운다. 자동으로 사라지지 않고, 다음 캡처가 있을 때까지(또는 씬 종료까지) 계속 보인다.</summary>
+        private void ShowThumbnail(Texture2D texture)
+        {
+            DestroyLastThumbnailTexture();
+
+            lastThumbnailTexture = texture;
+            Sprite sprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f));
+            view.ShowCapturedThumbnail(sprite);
+        }
+
+        private void DestroyLastThumbnailTexture()
+        {
+            if (lastThumbnailTexture != null)
+            {
+                Destroy(lastThumbnailTexture);
+                lastThumbnailTexture = null;
+            }
+        }
+
+        private void UpdateSmoothedHeading(float rawHeading)
+        {
+            if (!hasSmoothedHeading)
+            {
+                smoothedHeading = rawHeading;
+                hasSmoothedHeading = true;
+                return;
+            }
+
+            float lerpFactor = 1f - Mathf.Pow(1f - Mathf.Clamp01(config.headingSmoothingFactor), Time.deltaTime * 60f);
+            smoothedHeading = Mathf.LerpAngle(smoothedHeading, rawHeading, lerpFactor);
+        }
+
+        private void UpdateLandmarks()
+        {
+            float horizontalFov = ARCompassMath.HorizontalFovDegrees(arCamera);
+            float verticalFov = arCamera.fieldOfView;
+            float halfCanvasWidth = overlayRoot.rect.width * 0.5f;
+            float halfCanvasHeight = overlayRoot.rect.height * 0.5f;
+
+            // 랜드마크는 고도 정보가 없어 전부 "지평선" 높이에 있다고 가정한다.
+            // 카메라를 위/아래로 기울인 만큼(피치) 지평선이 화면에서 반대로 움직이는 것과 같은 효과를 준다.
+            float pitchDegrees = ARCompassMath.NormalizeAngle(arCamera.transform.eulerAngles.x);
+            float screenY = ARCompassMath.DeltaToScreenOffset(pitchDegrees, verticalFov, halfCanvasHeight);
+
+            int leftEdgeCount = 0;
+            int rightEdgeCount = 0;
+            int visibleCount = 0;
+
+            IReadOnlyList<ARLandmarkSnapshot> landmarks = ARHandoff.Landmarks;
+            for (int i = 0; i < landmarks.Count; i++)
+            {
+                ARLandmarkSnapshot landmark = landmarks[i];
+                double distance = GeoProjection.DistanceMeters(
+                    currentLocation.Latitude,
+                    currentLocation.Longitude,
+                    landmark.Latitude,
+                    landmark.Longitude);
+                if (distance > config.arDisplayRadiusMeters)
+                {
+                    view.Hide(landmark.Id);
+                    continue;
+                }
+
+                visibleCount++;
+                double bearing = GeoProjection.BearingDegrees(
+                    currentLocation.Latitude,
+                    currentLocation.Longitude,
+                    landmark.Latitude,
+                    landmark.Longitude);
+                float delta = ARCompassMath.NormalizeAngle((float)bearing - smoothedHeading);
+
+                if (Mathf.Abs(delta) <= horizontalFov * 0.5f)
+                {
+                    float screenX = ARCompassMath.DeltaToScreenOffset(delta, horizontalFov, halfCanvasWidth);
+                    view.ShowOnScreen(landmark, screenX, screenY, distance);
+                }
+                else
+                {
+                    bool rightSide = delta > 0f;
+                    int slotIndex = rightSide ? rightEdgeCount++ : leftEdgeCount++;
+                    view.ShowAtEdge(landmark, rightSide, screenY, distance, slotIndex);
+                }
+            }
+
+            HandleNoLandmarksState(visibleCount);
+        }
+
+        /// <summary>
+        /// 표시 반경 안에 랜드마크가 하나도 없는 상태가 이어지면 경고 문구를 깜빡이며 보여주다가
+        /// NoLandmarksTimeoutSeconds가 지나면 지도 화면으로 돌아간다.
+        /// </summary>
+        private void HandleNoLandmarksState(int visibleLandmarkCount)
+        {
+            if (visibleLandmarkCount > 0)
+            {
+                noLandmarksTimer = 0f;
+                view.SetNoLandmarksWarning(false, 0f);
+                return;
+            }
+
+            noLandmarksTimer += Time.deltaTime;
+            view.SetNoLandmarksWarning(true, noLandmarksTimer);
+
+            if (!returningToMap && noLandmarksTimer >= NoLandmarksTimeoutSeconds)
+            {
+                returningToMap = true;
+                ARHandoff.Clear();
+                SceneManager.LoadScene(MapSceneName);
+            }
+        }
+
+        private bool IsSessionTrackingOrStarting()
+        {
+            if (arSession == null)
+            {
+                return true;
+            }
+
+            return ARSession.state == ARSessionState.SessionTracking
+                || ARSession.state == ARSessionState.SessionInitializing;
+        }
+
+        private static string BuildSessionStatusMessage()
+        {
+            switch (ARSession.state)
+            {
+                case ARSessionState.Unsupported:
+                    return "이 기기는 AR을 지원하지 않습니다.";
+                case ARSessionState.NeedsInstall:
+                    return "AR 기능을 사용하려면 ARCore를 설치해야 합니다.";
+                case ARSessionState.Installing:
+                    return "ARCore를 설치하는 중…";
+                case ARSessionState.None:
+                case ARSessionState.CheckingAvailability:
+                case ARSessionState.Ready:
+                    return "AR 세션을 준비하는 중…";
+                default:
+                    return "AR 세션을 준비하는 중…";
+            }
+        }
+    }
+}

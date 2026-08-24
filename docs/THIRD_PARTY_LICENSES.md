@@ -1,0 +1,40 @@
+# Third-party Licenses
+
+## Current repository assets
+
+- The static map PNGs under `Assets/Resources/PixelRoad/Maps/` were removed on 2026-08-08. No OSM-derived raster imagery ships in the repository any more; their generation records remain in `docs/DATA_SOURCES.md` for provenance.
+- `Assets/Resources/PixelRoad/Icons/` currently contains only a README. Any spot icon PNG added there must have its own license and attribution recorded in this file before submission.
+- The included `landmarks.json` descriptions are manually written. Four Munjeong/Bupyeong landmark coordinates were manually curated from OpenStreetMap; their element identifiers and verification sources are recorded in `docs/DATA_SOURCES.md`.
+
+## Included font
+
+Font: Galmuri11.
+
+- Project: https://github.com/quiple/galmuri
+- License: SIL Open Font License 1.1
+- Included file: `Assets/Resources/PixelRoad/Fonts/Galmuri11.ttf`
+- License file: `Assets/Resources/PixelRoad/Fonts/Galmuri_OFL.md`
+
+## Included TMP default resources
+
+Unity TextMeshPro essential/default resources were imported so TMP has valid settings assets in clean checkouts.
+
+- Included path: `Assets/TextMesh Pro/Resources`
+- Included default font: Inter Regular
+- License file: `Assets/TextMesh Pro/Resources/Fonts & Materials/Inter-LICENSE.txt`
+- Included fallback font: Liberation Sans
+- License file: `Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt`
+- Included sprite sample: EmojiOne
+- Attribution file: `Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt`
+
+## Current and planned OSM-based maps
+
+The map surface is OSM-derived vector tiles rendered at runtime. The required attribution is:
+
+- © OpenStreetMap contributors
+
+OSM Shortbread-based vector data is used only by the current Editor/development validation configuration; it is not yet the approved contest submission source or provider. The project includes its own MVT/PBF decoder and mesh renderer and did not add a third-party vector-map runtime library. The static PNG fallback that previously covered the offline and rules-review case was removed on 2026-08-08; see `docs/CONTEST_COMPLIANCE.md` for the resulting open gate.
+
+When a live vector-tile provider, style, dataset, renderer, or decoding library is selected, add its exact license and attribution text here before it is included in the submission. No future vector-tile library is listed as an included dependency by this section.
+
+See `docs/CONTEST_COMPLIANCE.md` for the required approval gates.
