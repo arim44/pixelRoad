@@ -1,4 +1,5 @@
 using PixelRoad.AR;
+using PixelRoad.UI;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -35,10 +36,26 @@ namespace PixelRoad.Editor
         private const float FocusDirectionArrowSize = 96f;
         private const float FocusDirectionArrowVerticalOffset = 180f;
 
+        // PixelRoadUIRoot.prefab의 UnlockDialog(Dimmer/Panel/Surface/Title/Name/ConfirmButton) 값을
+        // 그대로 옮겨 왔다 - 해금 알림창은 화면이 달라도 똑같이 보여야 한다.
+        private const float DialogPanelWidth = 840f;
+        private const float DialogPanelHeight = 460f;
+        private const float DialogSurfaceInset = 6f;
+        private const int DialogTitleFontSize = 46;
+        private const int DialogNameFontSize = 44;
+        private const int DialogButtonFontSize = 30;
+        private const float DialogButtonHeight = 88f;
+        private const float DialogButtonHorizontalMargin = 36f;
+        private const float DialogButtonBottomMargin = 40f;
+
         private static readonly Color32 TextColor = new Color32(246, 237, 217, 255);
         private static readonly Color32 BackButtonBackground = new Color32(239, 228, 199, 255);
         private static readonly Color32 BackButtonLabel = new Color32(18, 17, 15, 255);
         private static readonly Color32 ThumbnailBackground = new Color32(18, 17, 15, 220);
+        private static readonly Color32 DialogDimmerColor = new Color32(18, 17, 15, 200);
+        private static readonly Color32 DialogPanelColor = new Color32(18, 17, 15, 255);
+        private static readonly Color32 DialogSurfaceColor = new Color32(239, 229, 207, 255);
+        private static readonly Color32 DialogConfirmButtonColor = new Color32(27, 139, 122, 255);
 
         /// <summary>ARLandmarkPinView.prefab과 AROverlayUIRoot.prefab을 코드로 다시 만들어 저장한다.</summary>
         [MenuItem("Tools/Pixel Road/AR/Rebuild AR UI Prefabs")]
@@ -222,6 +239,8 @@ namespace PixelRoad.Editor
             (GameObject thumbnailFrame, Button thumbnailButton, Image thumbnailImage) =
                 CreateThumbnailFrame(root.transform);
 
+            UnlockDialogView unlockDialog = BuildUnlockDialog(root.transform, font);
+
             AROverlayUiBindings bindings = root.GetComponent<AROverlayUiBindings>();
             AssignReference(bindings, "canvas", canvas);
             AssignReference(bindings, "canvasScaler", scaler);
@@ -238,6 +257,7 @@ namespace PixelRoad.Editor
             AssignReference(bindings, "thumbnailFrame", thumbnailFrame);
             AssignReference(bindings, "thumbnailButton", thumbnailButton);
             AssignReference(bindings, "thumbnailImage", thumbnailImage);
+            AssignReference(bindings, "unlockDialog", unlockDialog);
 
             PrefabUtility.SaveAsPrefabAsset(root, OverlayPrefabPath);
             Object.DestroyImmediate(root);
@@ -293,6 +313,94 @@ namespace PixelRoad.Editor
 
             frame.SetActive(false);
             return (frame, frameButton, photo);
+        }
+
+        /// <summary>
+        /// MapScene의 UnlockDialogView와 같은 클래스를 씌운 AR 전용 인스턴스. PixelRoadUIRoot.prefab의
+        /// UnlockDialog(딤머 - 어두운 Panel - 안쪽 크림색 Surface - 제목/이름/확인 버튼) 계층·색·크기를
+        /// 그대로 옮겨서, 클래스는 재사용하되 화면마다 모양이 달라 보이지 않게 한다.
+        /// </summary>
+        private static UnlockDialogView BuildUnlockDialog(Transform parent, TMP_FontAsset font)
+        {
+            Sprite uiSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+
+            GameObject root = new GameObject("UnlockDialog", typeof(RectTransform), typeof(UnlockDialogView));
+            root.transform.SetParent(parent, false);
+            Stretch((RectTransform)root.transform);
+
+            GameObject dimmerObject = new GameObject("Dimmer", typeof(RectTransform), typeof(Image));
+            dimmerObject.transform.SetParent(root.transform, false);
+            Stretch((RectTransform)dimmerObject.transform);
+            Image dimmer = dimmerObject.GetComponent<Image>();
+            dimmer.sprite = uiSprite;
+            dimmer.color = DialogDimmerColor;
+            dimmer.raycastTarget = true;
+
+            GameObject panel = new GameObject("Panel", typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(root.transform, false);
+            RectTransform panelRect = (RectTransform)panel.transform;
+            AnchorCenter(panelRect);
+            panelRect.sizeDelta = new Vector2(DialogPanelWidth, DialogPanelHeight);
+            Image panelImage = panel.GetComponent<Image>();
+            panelImage.sprite = uiSprite;
+            panelImage.color = DialogPanelColor;
+
+            GameObject surface = new GameObject("Surface", typeof(RectTransform), typeof(Image));
+            surface.transform.SetParent(panel.transform, false);
+            RectTransform surfaceRect = (RectTransform)surface.transform;
+            surfaceRect.anchorMin = Vector2.zero;
+            surfaceRect.anchorMax = Vector2.one;
+            surfaceRect.offsetMin = new Vector2(DialogSurfaceInset, DialogSurfaceInset);
+            surfaceRect.offsetMax = new Vector2(-DialogSurfaceInset, -DialogSurfaceInset);
+            Image surfaceImage = surface.GetComponent<Image>();
+            surfaceImage.sprite = uiSprite;
+            surfaceImage.color = DialogSurfaceColor;
+
+            TMP_Text titleText = CreateText(surface.transform, "Title", "랜드마크 발견!", DialogTitleFontSize, font);
+            titleText.color = Color.white;
+            RectTransform titleRect = titleText.rectTransform;
+            titleRect.anchorMin = new Vector2(0.5f, 1f);
+            titleRect.anchorMax = new Vector2(0.5f, 1f);
+            titleRect.pivot = new Vector2(0.5f, 1f);
+            titleRect.sizeDelta = new Vector2(720f, 80f);
+            titleRect.anchoredPosition = new Vector2(0f, -56f);
+
+            TMP_Text landmarkNameText = CreateText(surface.transform, "Name", "[랜드마크]", DialogNameFontSize, font);
+            landmarkNameText.color = Color.white;
+            RectTransform nameRect = landmarkNameText.rectTransform;
+            nameRect.anchorMin = new Vector2(0.5f, 1f);
+            nameRect.anchorMax = new Vector2(0.5f, 1f);
+            nameRect.pivot = new Vector2(0.5f, 1f);
+            nameRect.sizeDelta = new Vector2(720f, 80f);
+            nameRect.anchoredPosition = new Vector2(0f, -160f);
+
+            GameObject confirmButtonObject = new GameObject("ConfirmButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            confirmButtonObject.transform.SetParent(surface.transform, false);
+            RectTransform confirmRect = (RectTransform)confirmButtonObject.transform;
+            confirmRect.anchorMin = new Vector2(0f, 0f);
+            confirmRect.anchorMax = new Vector2(1f, 0f);
+            confirmRect.pivot = new Vector2(0.5f, 0f);
+            confirmRect.sizeDelta = new Vector2(-DialogButtonHorizontalMargin * 2f, DialogButtonHeight);
+            confirmRect.anchoredPosition = new Vector2(0f, DialogButtonBottomMargin);
+            Image confirmBackground = confirmButtonObject.GetComponent<Image>();
+            confirmBackground.sprite = uiSprite;
+            confirmBackground.color = DialogConfirmButtonColor;
+            Button confirmButton = confirmButtonObject.GetComponent<Button>();
+            confirmButton.targetGraphic = confirmBackground;
+
+            TMP_Text confirmLabel = CreateText(confirmButtonObject.transform, "Label", "확인", DialogButtonFontSize, font);
+            confirmLabel.color = Color.white;
+            Stretch(confirmLabel.rectTransform);
+
+            UnlockDialogView unlockDialog = root.GetComponent<UnlockDialogView>();
+            AssignReference(unlockDialog, "root", root);
+            AssignReference(unlockDialog, "dimmer", dimmer);
+            AssignReference(unlockDialog, "titleText", titleText);
+            AssignReference(unlockDialog, "landmarkNameText", landmarkNameText);
+            AssignReference(unlockDialog, "confirmButton", confirmButton);
+
+            root.SetActive(false);
+            return unlockDialog;
         }
 
         private static RectTransform CreateRect(Transform parent, string name)

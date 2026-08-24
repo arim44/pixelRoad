@@ -62,11 +62,21 @@ namespace PixelRoad.AR
             uiBindings.BackButton.onClick.AddListener(() => BackRequested?.Invoke());
             uiBindings.CaptureButton.onClick.AddListener(() => CaptureRequested?.Invoke());
             uiBindings.ThumbnailButton.onClick.AddListener(() => ThumbnailClicked?.Invoke());
+            uiBindings.UnlockDialog.Initialize();
 
             uiBindings.StatusText.gameObject.SetActive(false);
             uiBindings.ToastText.gameObject.SetActive(false);
             uiBindings.ThumbnailFrame.SetActive(false);
             uiBindings.FocusDirectionArrow.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// 랜드마크를 처음 해금했을 때 MapScene과 같은 `랜드마크 발견!` 창을 띄운다.
+        /// UnlockDialogView가 큐를 들고 있어 연속 해금도 알아서 하나씩 이어 보여준다.
+        /// </summary>
+        public void ShowUnlockDialog(SpotDefinition definition)
+        {
+            uiBindings.UnlockDialog.Enqueue(definition);
         }
 
         /// <summary>화면 위쪽에 짧은 안내 문구를 잠깐 보여준다(예: 갤러리 열기 실패). 자동으로 사라지지는 않고, 다시 호출하면 내용만 갱신된다.</summary>

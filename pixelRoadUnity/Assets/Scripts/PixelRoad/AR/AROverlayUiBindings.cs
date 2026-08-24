@@ -1,4 +1,5 @@
 using System;
+using PixelRoad.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -45,6 +46,10 @@ namespace PixelRoad.AR
         [SerializeField] private Button thumbnailButton;
         [SerializeField] private Image thumbnailImage;
 
+        [Header("Unlock dialog")]
+        /// <summary>MapScene의 UnlockDialogView와 같은 클래스를 그대로 쓴다 - 랜드마크 발견 알림은 화면마다 새로 만들 이유가 없다.</summary>
+        [SerializeField] private UnlockDialogView unlockDialog;
+
         public Canvas Canvas => canvas;
         public CanvasScaler CanvasScaler => canvasScaler;
         public GraphicRaycaster GraphicRaycaster => graphicRaycaster;
@@ -67,6 +72,8 @@ namespace PixelRoad.AR
         public Button ThumbnailButton => thumbnailButton;
         public Image ThumbnailImage => thumbnailImage;
 
+        public UnlockDialogView UnlockDialog => unlockDialog;
+
         /// <summary>직렬화 참조가 하나라도 비어 있으면 즉시 예외를 던져 프리팹 설정 실수를 잡는다.</summary>
         public void ValidateReferences()
         {
@@ -85,6 +92,8 @@ namespace PixelRoad.AR
             Require(thumbnailFrame, nameof(thumbnailFrame));
             Require(thumbnailButton, nameof(thumbnailButton));
             Require(thumbnailImage, nameof(thumbnailImage));
+            Require(unlockDialog, nameof(unlockDialog));
+            unlockDialog.ValidateReferences();
         }
 
         private void Require(UnityEngine.Object reference, string fieldName)

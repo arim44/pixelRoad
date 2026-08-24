@@ -90,6 +90,11 @@ namespace PixelRoad.AR
         /// <summary>새 씬이 이미 화면에 드러난 뒤 호출한다 - durationSeconds에 걸쳐 서서히 투명해지다 스스로 없어진다.</summary>
         public void FadeOutAndDestroy(float durationSeconds)
         {
+            if (fadeRunner == null)
+            {
+                return;
+            }
+
             fadeRunner.FadeOut(bindings.CanvasGroup, durationSeconds);
         }
 
@@ -103,11 +108,26 @@ namespace PixelRoad.AR
 
             public void FadeIn(CanvasGroup canvasGroup, float durationSeconds)
             {
+                if (canvasGroup == null)
+                {
+                    return;
+                }
+
                 StartFade(Fade(canvasGroup, 0f, 1f, durationSeconds, destroyAfter: false));
             }
 
+            /// <summary>
+            /// PendingLoadingScreen 핸드오프가 중복되면(예: 뒤로가기 연타) 이미 페이드아웃되어
+            /// Destroy된 CanvasGroup에 다시 FadeOut이 걸릴 수 있다 - canvasGroup.alpha를 읽기 전에
+            /// Unity의 "파괴됨" 비교(== null)로 먼저 걸러 MissingReferenceException을 막는다.
+            /// </summary>
             public void FadeOut(CanvasGroup canvasGroup, float durationSeconds)
             {
+                if (canvasGroup == null)
+                {
+                    return;
+                }
+
                 StartFade(Fade(canvasGroup, canvasGroup.alpha, 0f, durationSeconds, destroyAfter: true));
             }
 

@@ -176,6 +176,15 @@ namespace PixelRoad.AR
         /// </summary>
         private void ReturnToMapScene()
         {
+            // 뒤로가기를 연달아 누르거나 뒤로가기와 근처 랜드마크 없음 타임아웃이 겹치면 여기가 두 번
+            // 호출될 수 있다 - 그러면 로딩 화면(LoadingScreenView.Create)이 두 번 만들어지고
+            // ARHandoff.PendingLoadingScreen이 그중 하나만 가리키게 돼, 남은 하나가 고아로 남거나
+            // 이미 파괴된 CanvasGroup을 다시 페이드아웃하려다 MissingReferenceException이 났다.
+            if (returningToMap)
+            {
+                return;
+            }
+
             returningToMap = true;
             ARHandoff.Clear();
             StartCoroutine(ARSceneLauncher.LoadMapScene());
@@ -222,7 +231,9 @@ namespace PixelRoad.AR
             spotState.Unlock();
             unlockedLandmarkIds.Add(landmark.Id);
             view.SetLandmarkUnlocked(landmark.Id);
-            ShowToast(spotState.Definition.DisplayName + " 랜드마크를 해금했습니다!");
+
+            // MapScene과 똑같은 "랜드마크 발견!" 창을 그대로 재사용한다 - 화면마다 다른 알림 방식을 두지 않는다.
+            view.ShowUnlockDialog(spotState.Definition);
         }
 
         private static SpotRuntimeState FindSpotById(string landmarkId)
