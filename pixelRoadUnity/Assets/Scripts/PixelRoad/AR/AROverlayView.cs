@@ -199,6 +199,19 @@ namespace PixelRoad.AR
         }
 
         /// <summary>
+        /// 방금 해금된 랜드마크의 핀 색을 해금 틴트로 바꾼다. 핀이 아직 만들어지지 않았으면(화면에 한 번도
+        /// 안 보였으면) 조용히 무시한다 - 다음에 ShowOnScreen/ShowAtEdge로 처음 만들어질 때 landmark.IsUnlocked
+        /// 스냅샷 값으로 이미 해금 틴트가 적용된다.
+        /// </summary>
+        public void SetLandmarkUnlocked(string landmarkId)
+        {
+            if (bindings.TryGetValue(landmarkId, out LandmarkBinding binding))
+            {
+                binding.Icon.color = UnlockedIconTint;
+            }
+        }
+
+        /// <summary>
         /// 집중 모드일 때 화면 중앙보다 살짝 아래에서 선택된 랜드마크 방향을 가리키는 나침반 화살표를 보여준다.
         /// deltaDegrees는 카메라 정면 기준 랜드마크 방위각(오른쪽이 양수)으로, 화면 안/밖 여부와 상관없이
         /// 항상 실제 각도로 회전해 자연스럽게 그 방향을 가리킨다.

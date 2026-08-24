@@ -43,6 +43,11 @@ namespace PixelRoad.AR
         private Texture2D lastThumbnailTexture;
         private string lastCaptureUri;
         private Coroutine toastHideRoutine;
+        private VisitRepository visitRepository;
+
+        /// <summary>이번 AR 세션에서 이미 해금 처리(또는 원래 해금 상태)로 확인한 랜드마크 id.
+        /// 매 프레임 같은 랜드마크를 다시 조회·기록하지 않으려고 둔다.</summary>
+        private readonly HashSet<string> unlockedLandmarkIds = new HashSet<string>();
 
         private IEnumerator Start()
         {
@@ -59,6 +64,18 @@ namespace PixelRoad.AR
             ARHandoff.PendingLoadingScreen?.FadeOutAndDestroy(LoadingFadeOutSeconds);
             ARHandoff.PendingLoadingScreen = null;
             currentLocation = ARHandoff.InitialLocation;
+
+            // MapScene과 같은 파일(visited_landmarks.json)을 읽고 쓴다 - 별도 인스턴스여도 저장소가
+            // 파일 기반이라 지도로 돌아가면 새로 만들어지는 PixelRoadApp의 VisitRepository가 그대로 읽는다.
+            visitRepository = new VisitRepository();
+            IReadOnlyList<ARLandmarkSnapshot> initialLandmarks = ARHandoff.Landmarks;
+            for (int i = 0; i < initialLandmarks.Count; i++)
+            {
+                if (initialLandmarks[i].IsUnlocked)
+                {
+                    unlockedLandmarkIds.Add(initialLandmarks[i].Id);
+                }
+            }
 
 #if UNITY_EDITOR
             // TrackedPoseDriver는 실기기 추적 데이터를 매 프레임 카메라에 그대로 덮어써서, 에디터에서
@@ -190,6 +207,24 @@ namespace PixelRoad.AR
             GlobalValue.SelectedSpot = FindSpotById(landmarkId);
         }
 
+        /// <summary>
+        /// 랜드마크 방문 반경 안에 처음 들어왔을 때 호출한다. VisitRepository에 기록하고(오늘 이미
+        /// 기록됐으면 false), 성공하면 실제 SpotRuntimeState를 해금 처리한 뒤 핀 아이콘 색도 갱신한다.
+        /// </summary>
+        private void TryUnlockLandmark(ARLandmarkSnapshot landmark)
+        {
+            SpotRuntimeState spotState = FindSpotById(landmark.Id);
+            if (spotState == null || !visitRepository.RecordVisit(spotState.Definition.LandmarkId, DateTime.Now))
+            {
+                return;
+            }
+
+            spotState.Unlock();
+            unlockedLandmarkIds.Add(landmark.Id);
+            view.SetLandmarkUnlocked(landmark.Id);
+            ShowToast(spotState.Definition.DisplayName + " 랜드마크를 해금했습니다!");
+        }
+
         private static SpotRuntimeState FindSpotById(string landmarkId)
         {
             IReadOnlyList<SpotRuntimeState> spots = ARHandoff.Spots;
@@ -304,17 +339,25 @@ namespace PixelRoad.AR
             for (int i = 0; i < landmarks.Count; i++)
             {
                 ARLandmarkSnapshot landmark = landmarks[i];
+                double distance = GeoProjection.DistanceMeters(
+                    currentLocation.Latitude,
+                    currentLocation.Longitude,
+                    landmark.Latitude,
+                    landmark.Longitude);
+
+                // 해금 판정은 화면 표시 여부(집중 모드로 숨겨져 있는지, 표시 반경 밖인지)와 무관하게
+                // 항상 확인한다 - 다른 랜드마크에 집중한 채로 걸어가도 실제 반경에 들어오면 해금돼야 한다.
+                if (!unlockedLandmarkIds.Contains(landmark.Id) && distance <= landmark.RadiusMeters)
+                {
+                    TryUnlockLandmark(landmark);
+                }
+
                 if (focusedLandmarkId != null && landmark.Id != focusedLandmarkId)
                 {
                     view.Hide(landmark.Id);
                     continue;
                 }
 
-                double distance = GeoProjection.DistanceMeters(
-                    currentLocation.Latitude,
-                    currentLocation.Longitude,
-                    landmark.Latitude,
-                    landmark.Longitude);
                 // 방문(해금) 반경 안에 들어와 있으면 표시 반경을 살짝 벗어나도 계속 보여준다 -
                 // 그렇지 않으면 랜드마크 코앞까지 걸어가는 도중에 핀이 먼저 꺼져 버릴 수 있다.
                 if (distance > config.arDisplayRadiusMeters + landmark.RadiusMeters)
