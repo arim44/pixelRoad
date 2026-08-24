@@ -14,29 +14,10 @@ namespace PixelRoad.Editor
         private const string BuildPathArgument = "-pixelRoadBuildPath";
 
         /// <summary>메뉴에서 개발용 APK를 기본 경로에 빌드한다.</summary>
-        [MenuItem("Pixel Road/Build Android Development APK")]
-        public static void BuildAndroidDevelopmentApk()
+        [MenuItem("Pixel Road/Build Android APK")]
+        public static void BuildAndroidApk()
         {
-            string defaultPath = Path.GetFullPath(Path.Combine(
-                Application.dataPath,
-                "..",
-                "..",
-                "Build",
-                "PixelRoad-development.apk"));
-            BuildApk(defaultPath, BuildOptions.Development, "development");
-        }
-
-        /// <summary>메뉴에서 오프라인 심사용 APK를 기본 경로에 빌드한다.</summary>
-        [MenuItem("Pixel Road/Build Android Offline Review APK")]
-        public static void BuildAndroidOfflineReviewApk()
-        {
-            string defaultPath = Path.GetFullPath(Path.Combine(
-                Application.dataPath,
-                "..",
-                "..",
-                "Build",
-                "PixelRoad-offline-review.apk"));
-            BuildApk(defaultPath, BuildOptions.None, "offline review");
+            BuildApk(DefaultOutputPath(), BuildOptions.Development, "development");
         }
 
         /// <summary>
@@ -48,38 +29,26 @@ namespace PixelRoad.Editor
             string outputPath = ReadArgument(BuildPathArgument);
             if (string.IsNullOrWhiteSpace(outputPath))
             {
-                outputPath = Path.GetFullPath(Path.Combine(
-                    Application.dataPath,
-                    "..",
-                    "..",
-                    "Build",
-                    "PixelRoad-development.apk"));
+                outputPath = DefaultOutputPath();
             }
 
             BuildApk(outputPath, BuildOptions.Development, "development");
         }
 
-        /// <summary>
-        /// Builds a non-development APK. Live networking is compiled out unless the
-        /// PIXELROAD_LIVE_VECTOR_MAP scripting symbol has been deliberately approved.
-        /// </summary>
-        public static void BuildAndroidOfflineReviewFromCommandLine()
+        /// <summary>프로젝트 옆 Build 폴더의 기본 APK 경로.</summary>
+        private static string DefaultOutputPath()
         {
-            string outputPath = ReadArgument(BuildPathArgument);
-            if (string.IsNullOrWhiteSpace(outputPath))
-            {
-                outputPath = Path.GetFullPath(Path.Combine(
-                    Application.dataPath,
-                    "..",
-                    "..",
-                    "Build",
-                    "PixelRoad-offline-review.apk"));
-            }
-
-            BuildApk(outputPath, BuildOptions.None, "offline review");
+            return Path.GetFullPath(Path.Combine(
+                Application.dataPath,
+                "..",
+                "..",
+                "Build",
+                "PixelRoad.apk"));
         }
 
-        /// <summary>출력 경로를 검증하고 폴더를 만든 뒤 실제 빌드를 돌린다. 실패하면 예외를 던져 CI가 알아채게 한다.</summary>
+        /// <summary>
+        /// 출력 경로를 검증하고 폴더를 만든 뒤 실제 빌드를 돌린다. 실패하면 예외를 던져 CI가 알아채게 한다.
+        /// </summary>
         private static void BuildApk(string outputPath, BuildOptions buildOptions, string buildLabel)
         {
             if (!outputPath.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
@@ -103,10 +72,11 @@ namespace PixelRoad.Editor
                 options = buildOptions
             };
             BuildReport report = BuildPipeline.BuildPlayer(options);
+
             if (report.summary.result != BuildResult.Succeeded)
             {
                 throw new InvalidOperationException(
-                    "Pixel Road Android development build failed: " + report.summary.result);
+                    "Pixel Road Android " + buildLabel + " build failed: " + report.summary.result);
             }
 
             Debug.Log(

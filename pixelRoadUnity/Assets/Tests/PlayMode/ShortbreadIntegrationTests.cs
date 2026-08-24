@@ -43,7 +43,7 @@ namespace PixelRoad.Tests.PlayMode
 
         [UnityTest]
         [Category("Integration")]
-        public IEnumerator CurrentViewport_RendersAndSwitchesPixelMode()
+        public IEnumerator CurrentViewport_RendersLiveTiles()
         {
             if (!HasCommandLineSwitch("-pixelRoadRunNetworkIntegration"))
             {
@@ -94,34 +94,20 @@ namespace PixelRoad.Tests.PlayMode
             Component rawImage = FindComponent(outputObject, "UnityEngine.UI.RawImage");
             Assert.That(rawImage, Is.Not.Null);
             PropertyInfo textureProperty = rawImage.GetType().GetProperty("texture");
-            MethodInfo setPixelMode = renderer.GetType().GetMethod("SetPixelMode");
             Assert.That(textureProperty, Is.Not.Null);
-            Assert.That(setPixelMode, Is.Not.Null);
 
-            setPixelMode.Invoke(renderer, new object[] { false });
             yield return null;
-            RenderTexture smooth = textureProperty.GetValue(rawImage) as RenderTexture;
-            Assert.That(smooth, Is.Not.Null);
-            Assert.That(smooth.IsCreated(), Is.True);
-            Assert.That(smooth.filterMode, Is.EqualTo(FilterMode.Bilinear));
-            int smoothWidth = smooth.width;
-            int smoothHeight = smooth.height;
-
-            setPixelMode.Invoke(renderer, new object[] { true });
-            yield return null;
-            RenderTexture pixel = textureProperty.GetValue(rawImage) as RenderTexture;
-            Assert.That(pixel, Is.Not.Null);
-            Assert.That(pixel.IsCreated(), Is.True);
-            Assert.That(pixel.filterMode, Is.EqualTo(FilterMode.Point));
-            Assert.That(pixel.width, Is.LessThan(smoothWidth));
-            Assert.That(pixel.height, Is.LessThan(smoothHeight));
+            RenderTexture output = textureProperty.GetValue(rawImage) as RenderTexture;
+            Assert.That(output, Is.Not.Null);
+            Assert.That(output.IsCreated(), Is.True);
+            Assert.That(output.filterMode, Is.EqualTo(FilterMode.Bilinear));
 
             GameObject attribution = GameObject.Find("MapAttribution");
             GameObject viewport = GameObject.Find("MapViewport");
             Assert.That(attribution, Is.Not.Null);
             Assert.That(viewport, Is.Not.Null);
             Assert.That(attribution.transform.IsChildOf(viewport.transform), Is.False,
-                "Attribution must stay outside the pixelated map output.");
+                "Attribution must stay outside the map output.");
 
             FieldInfo requiredKeysField = renderer.GetType().GetField(
                 "requiredKeys",
@@ -135,10 +121,8 @@ namespace PixelRoad.Tests.PlayMode
             Assert.That(visibleTileCount, Is.LessThanOrEqualTo(100));
             Debug.Log(
                 "[PixelRoad Integration] visible tiles=" + visibleTileCount
-                + ", smooth=" + smoothWidth + "x" + smoothHeight
-                + ", pixel=" + pixel.width + "x" + pixel.height);
+                + ", output=" + output.width + "x" + output.height);
 
-            setPixelMode.Invoke(renderer, new object[] { false });
             UnityEngine.Object.Destroy(appObject);
         }
 

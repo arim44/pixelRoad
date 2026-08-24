@@ -10,12 +10,13 @@ This document is a review gate, not a statement that the project is already comp
 
 - **2026-08-08 change: the static PNG fallback was removed and the live vector map is now the only map surface.** `mapImageResourcePath` was deleted from `map_config.json`, and `PixelRoadApp` no longer loads a map texture. This was an explicit product decision and it **reopens** the offline-demo gate recorded below.
   - When the live map is unavailable, the app starts, shows an on-screen reason, logs an error, and keeps the codex and unlock logic usable, but no map and no spot markers are drawn.
-  - The release gates were intentionally left untouched: a non-development build still needs both `allowLiveVectorMapInRelease: true` and the `PIXELROAD_LIVE_VECTOR_MAP` scripting symbol, so an offline-review APK now has no map at all.
-  - Before submission, either approve a live provider for release use or re-introduce an offline map source.
+  - **2026-08-22 follow-up: the release gate was inverted.** `allowLiveVectorMapInRelease` and the opt-in `PIXELROAD_LIVE_VECTOR_MAP` symbol were removed, so every build ships the map by default.
+  - **2026-08-22 second follow-up: the offline-review flavor was removed entirely.** The `PIXELROAD_OFFLINE_REVIEW` symbol, its menu item, and its manifest opt-out are gone, so there is exactly one Android build (`Pixel Road > Build Android APK`) and `INTERNET` is always declared. It produced a map-less APK with no static fallback, so it served no purpose.
+  - This resolves the map-less release APK, but it does **not** resolve the offline-judging question: there is now no offline build at all. Re-introducing an offline map source remains open.
 - A provider-swappable, Shortbread-compatible live MVT path is implemented for technical validation. The current development configuration points to OSM Shortbread and is used to test viewport tile selection, vector rendering, caching, and optional pixel output. It is not the approved contest submission provider.
 - The submission provider, endpoint, service plan, and permitted cache policy remain undecided until the official contest rules and the provider terms have been reviewed together.
 - The MVT/PBF decoder, mesh builder, viewport selector, and cache are project source code and add no new runtime package. The data provider still must pass the gates below before it is enabled in a submission release.
-- `allowLiveVectorMapInRelease` is `false`. Editor and development builds may validate live tiles, while a non-development build compiles out the requester unless `PIXELROAD_LIVE_VECTOR_MAP` is explicitly defined. Both gates require approval before a live submission.
+- Live tiles are enabled in every build flavor by default (single runtime switch: `enableLiveVectorMap`). Approving the submission provider is therefore a **process** gate, not a build gate — nothing in the build now stops a live provider from shipping, so the provider decision below must be settled before submission.
 - ~~The app must retain a static PNG fallback so that it can still demonstrate its core flow when the judging environment is offline, the provider is unavailable, or contest rules prohibit an external service.~~ **Superseded on 2026-08-08 and unresolved.** The fallback no longer exists, so an offline judging environment currently sees no map. Re-adding an offline map source or approving a live provider for release remains an open submission blocker.
 
 ## Mandatory review gates
@@ -98,8 +99,7 @@ Status: **Partially implemented — the OSM attribution is visible outside the p
 - Opt-in live PlayMode: 1/1 passed against one current Shortbread viewport. It rendered a tile, switched a 640×480 smooth RenderTexture to a 160×120 point-sampled pixel RenderTexture, and kept attribution outside the pixel layer.
 - Android IL2CPP development build: succeeded for OpenGLES3 and Vulkan. APK size is 51,423,036 bytes, SHA-256 is `F57E2437B6B5F000D563006C48240FEF5AEF3421354EB1D55BFAB45360250FCA`, package id is `com.pixelroad.app`, min SDK is 25, and target SDK is 36.
 - The development APK declares `INTERNET`, `ACCESS_FINE_LOCATION`, and `ACCESS_COARSE_LOCATION`; no background-location permission is present.
-- Android IL2CPP offline-review build: succeeded with the live requester compiled out. APK size is 40,263,395 bytes and SHA-256 is `8E0ED96AF63ECBC4AE16D6C161E052DB9B92107D138012BCB42CE0DA05E7D4EA`.
-- The merged offline-review manifest was inspected with Android build tools: package id is `com.pixelroad.app`, min SDK is 25, target SDK is 36, and `INTERNET` is absent. It retains foreground `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` plus Android's app-scoped dynamic-receiver permission.
+- An offline-review APK was also built and inspected on this date (40,263,395 bytes, SHA-256 `8E0ED96AF63ECBC4AE16D6C161E052DB9B92107D138012BCB42CE0DA05E7D4EA`, `INTERNET` absent). That build flavor was removed on 2026-08-22 and can no longer be reproduced; the record is kept for history only.
 - The connected Android device was not authorized for ADB, so installation, frame-time, memory, permission-denial, and physical-device visual checks remain pending.
 - `com.coplaydev.unity-mcp` is still a development package referenced from a Git `main` branch. Pin or remove it for the final source/submission after reviewing the contest's AI-tool and dependency rules.
 

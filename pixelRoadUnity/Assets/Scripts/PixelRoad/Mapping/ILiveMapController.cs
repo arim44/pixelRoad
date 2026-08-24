@@ -48,9 +48,5 @@ namespace PixelRoad.Mapping
         /// 해당 지점이 현재 화면에 보이는지 판단한다. padding으로 경계를 넉넉히 잡을 수 있다.
         /// </summary>
         bool IsInViewport(double latitude, double longitude, float padding = 0f);
-        /// <summary>
-        /// 픽셀 아트 표현 모드를 켜거나 끈다.
-        /// </summary>
-        void SetPixelMode(bool enabled);
     }
 }

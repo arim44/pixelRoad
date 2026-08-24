@@ -1,4 +1,3 @@
-#if UNITY_EDITOR || DEVELOPMENT_BUILD || PIXELROAD_LIVE_VECTOR_MAP
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -41,7 +40,6 @@ namespace PixelRoad.Mapping
         private Material tileMaterial;
         private RenderTexture renderTexture;
         private bool initialized;
-        private bool pixelMode;
         private bool shuttingDown;
         private int sourceZoom = -1;
         private int originTileX;
@@ -146,7 +144,6 @@ namespace PixelRoad.Mapping
             output.color = Color.white;
             output.material = null;
             output.enabled = false;
-            pixelMode = config.enablePixelFilter;
             initialized = true;
             Canvas.ForceUpdateCanvases();
             EnsureRenderTexture(true);
@@ -219,18 +216,6 @@ namespace PixelRoad.Mapping
             Vector2 local = LatLonToViewportLocal(latitude, longitude);
             Vector2 halfSize = viewport.rect.size * 0.5f;
             return Mathf.Abs(local.x) <= halfSize.x + padding && Mathf.Abs(local.y) <= halfSize.y + padding;
-        }
-
-        /// <summary>픽셀 모드를 켜고 끈다. 렌더 타깃 해상도와 필터링이 함께 바뀐다.</summary>
-        public void SetPixelMode(bool enabled)
-        {
-            if (!initialized || pixelMode == enabled)
-            {
-                return;
-            }
-
-            pixelMode = enabled;
-            EnsureRenderTexture(true);
         }
 
         /// <summary>뷰포트 크기 변화만 감시한다. 화면 회전이나 레이아웃 변경 시 렌더 타깃을 다시 맞춘다.</summary>
@@ -689,9 +674,8 @@ namespace PixelRoad.Mapping
             fullWidth = Mathf.Max(1, Mathf.RoundToInt(fullWidth * fitScale));
             fullHeight = Mathf.Max(1, Mathf.RoundToInt(fullHeight * fitScale));
 
-            int blockSize = pixelMode ? Mathf.Max(1, config.pixelBlockSize) : 1;
-            int width = Mathf.Max(64, Mathf.CeilToInt(fullWidth / (float)blockSize));
-            int height = Mathf.Max(64, Mathf.CeilToInt(fullHeight / (float)blockSize));
+            int width = Mathf.Max(64, fullWidth);
+            int height = Mathf.Max(64, fullHeight);
             if (!force && renderTexture != null && renderWidth == width && renderHeight == height)
             {
                 return;
@@ -700,8 +684,8 @@ namespace PixelRoad.Mapping
             RenderTexture previous = renderTexture;
             renderTexture = new RenderTexture(width, height, 16, RenderTextureFormat.ARGB32)
             {
-                name = pixelMode ? "PixelRoad Map Pixel RT" : "PixelRoad Map Smooth RT",
-                filterMode = pixelMode ? FilterMode.Point : FilterMode.Bilinear,
+                name = "PixelRoad Map RT",
+                filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
                 antiAliasing = 1,
                 useMipMap = false,
@@ -837,4 +821,3 @@ namespace PixelRoad.Mapping
         }
     }
 }
-#endif

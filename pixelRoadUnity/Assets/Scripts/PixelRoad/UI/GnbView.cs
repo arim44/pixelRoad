@@ -64,6 +64,12 @@ namespace PixelRoad.UI
         /// <summary>쓸 수 있는 탭을 눌렀을 때 발생한다.</summary>
         public event Action<GnbTab> TabSelected;
 
+        /// <summary>
+        /// 조건을 만족하지 못해 못 쓰는 탭을 눌렀을 때 발생한다.
+        /// 회색 탭이 아무 반응도 없으면 고장으로 보이므로, 왜 못 쓰는지 알려 줄 기회를 준다.
+        /// </summary>
+        public event Action<GnbTab> TabBlocked;
+
         public GnbTab CurrentTab
         {
             get { return currentTab; }
@@ -117,7 +123,13 @@ namespace PixelRoad.UI
             ApplyAllVisuals();
         }
 
-        /// <summary>탭의 사용 가능 여부를 지정한다.</summary>
+        /// <summary>
+        /// 탭의 사용 가능 여부를 지정한다.
+        ///
+        /// <see cref="Button.interactable"/>은 건드리지 않는다. Unity가 그 값을 끄면 클릭 자체를 삼켜
+        /// <see cref="TabBlocked"/>를 알릴 수 없고, 회색 탭이 아무 반응도 없는 상태가 되기 때문이다.
+        /// 사용 가능 여부는 <see cref="tabEnabled"/>로만 관리하고 색으로 드러낸다.
+        /// </summary>
         public void SetInteractable(GnbTab tab, bool value)
         {
             int index = (int)tab;
@@ -127,7 +139,6 @@ namespace PixelRoad.UI
             }
 
             tabEnabled[index] = value;
-            buttons[index].interactable = value;
             ApplyVisual(index);
         }
 
@@ -151,7 +162,11 @@ namespace PixelRoad.UI
             }
         }
 
-        /// <summary>탭 하나의 버튼·아이콘·라벨을 인덱스 배열에 담고 클릭을 연결한다. 초기 사용 여부는 버튼 설정을 따른다.</summary>
+        /// <summary>
+        /// 탭 하나의 버튼·아이콘·라벨을 인덱스 배열에 담고 클릭을 연결한다. 초기 사용 여부는 버튼 설정을 따른다.
+        /// 버튼 자체는 늘 눌리는 상태로 두고(비활성 탭도 클릭을 받아야 안내를 띄울 수 있다),
+        /// 못 쓰는 탭인지는 <see cref="HandleTap"/>이 판단한다.
+        /// </summary>
         private void Bind(GnbTab tab, Button button, Image icon, TMP_Text label)
         {
             int index = (int)tab;
@@ -159,14 +174,16 @@ namespace PixelRoad.UI
             icons[index] = icon;
             labels[index] = label;
             tabEnabled[index] = button.interactable;
+            button.interactable = true;
             button.onClick.AddListener(() => HandleTap(tab));
         }
 
-        /// <summary>탭 클릭을 받아 쓸 수 있는 탭일 때만 TabSelected를 알린다.</summary>
+        /// <summary>탭 클릭을 받아 쓸 수 있으면 TabSelected를, 못 쓰면 TabBlocked를 알린다.</summary>
         private void HandleTap(GnbTab tab)
         {
             if (!tabEnabled[(int)tab])
             {
+                TabBlocked?.Invoke(tab);
                 return;
             }
 
