@@ -25,6 +25,10 @@ namespace PixelRoad.Editor
         private const string OverlayPrefabPath = "Assets/Resources/PixelRoad/UI/AROverlayUIRoot.prefab";
         private const string PixelFontAssetPath = "Assets/Resources/PixelRoad/Fonts/Galmuri11 SDF.asset";
 
+        /// <summary>PixelRoadUIRoot.prefab의 UnlockDialog가 Panel/Surface/버튼 배경에 쓰는 단색 스프라이트.
+        /// Unity 기본 UISprite(둥근 모서리·테두리)가 아니라 이 project 전용 8x8 흰색 텍스처다.</summary>
+        private const string SolidSpriteResourcePath = "PixelRoad/Icons/solid";
+
         // AROverlayView/ARUiFactory에 있던 값을 그대로 옮겨 왔다.
         private const float DefaultIconPixelSize = 96f;
         private const float CaptureButtonSize = 88f;
@@ -322,7 +326,11 @@ namespace PixelRoad.Editor
         /// </summary>
         private static UnlockDialogView BuildUnlockDialog(Transform parent, TMP_FontAsset font)
         {
-            Sprite uiSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            Sprite uiSprite = Resources.Load<Sprite>(SolidSpriteResourcePath);
+            if (uiSprite == null)
+            {
+                Debug.LogError("[PixelRoad] 해금 알림창용 solid 스프라이트를 찾지 못했습니다: " + SolidSpriteResourcePath);
+            }
 
             GameObject root = new GameObject("UnlockDialog", typeof(RectTransform), typeof(UnlockDialogView));
             root.transform.SetParent(parent, false);
@@ -357,7 +365,7 @@ namespace PixelRoad.Editor
             surfaceImage.color = DialogSurfaceColor;
 
             TMP_Text titleText = CreateText(surface.transform, "Title", "랜드마크 발견!", DialogTitleFontSize, font);
-            titleText.color = Color.white;
+            titleText.color = BackButtonLabel;
             RectTransform titleRect = titleText.rectTransform;
             titleRect.anchorMin = new Vector2(0.5f, 1f);
             titleRect.anchorMax = new Vector2(0.5f, 1f);
@@ -366,7 +374,7 @@ namespace PixelRoad.Editor
             titleRect.anchoredPosition = new Vector2(0f, -56f);
 
             TMP_Text landmarkNameText = CreateText(surface.transform, "Name", "[랜드마크]", DialogNameFontSize, font);
-            landmarkNameText.color = Color.white;
+            landmarkNameText.color = BackButtonLabel;
             RectTransform nameRect = landmarkNameText.rectTransform;
             nameRect.anchorMin = new Vector2(0.5f, 1f);
             nameRect.anchorMax = new Vector2(0.5f, 1f);
