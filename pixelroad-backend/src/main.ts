@@ -18,7 +18,10 @@ async function bootstrap() {
 
   SwaggerModule.setup("docs", app, SwaggerModule.createDocument(app, config)); 
 
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`PixelRoad 시작: Http://localhost:${process.env.PORT} (Swagger 문서: /docs)`);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  //console.log(`PixelRoad 시작: Http://localhost:${process.env.PORT} (Swagger 문서: /docs)`);
+  console.log(`PixelRoad API started on port ${port}`);
+  console.log('(Swagger 문서: /docs)')
 }
 bootstrap();

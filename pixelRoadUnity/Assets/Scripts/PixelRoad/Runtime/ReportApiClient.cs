@@ -11,7 +11,7 @@ namespace PixelRoad.Runtime
     /// <summary>
     /// AI 탐험 리포트 API 호출기.
     ///
-    /// <c>POST {서버}/api/report</c> 로 방문 기록을 보내고 분석 결과를 받는다.
+    /// <c>POST {서버}/api/ai/report</c> 로 방문 기록을 보내고 분석 결과를 받는다.
     /// 백엔드가 아직 없으므로 map_config의 reportApiUrl이 비어 있으면 임시 응답을 만들어 돌려준다.
     /// 임시 응답도 실제 응답과 같은 <see cref="ReportResponse"/> 타입이라, 서버가 붙어도 화면 코드는 그대로다.
     /// </summary>
@@ -65,11 +65,11 @@ namespace PixelRoad.Runtime
                     yield break;
                 }
 
-                ReportResponse response = null;
+                ReportApiEnvelope envelope = null;
                 string parseError = null;
                 try
                 {
-                    response = JsonUtility.FromJson<ReportResponse>(request.downloadHandler.text);
+                    envelope = JsonUtility.FromJson<ReportApiEnvelope>(request.downloadHandler.text);
                 }
                 catch (Exception exception)
                 {
@@ -83,6 +83,7 @@ namespace PixelRoad.Runtime
                     yield break;
                 }
 
+                ReportResponse response = envelope != null && envelope.success ? envelope.data : null;
                 if (response == null || !response.IsUsable)
                 {
                     onFailure?.Invoke("AI 분석에 실패했어요");
