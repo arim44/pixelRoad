@@ -33,6 +33,11 @@ namespace PixelRoad.AR
 
         [Header("Focus direction")]
         [SerializeField] private Image focusDirectionArrow;
+        [SerializeField] private TMP_Text focusDistanceText;
+
+        [Header("Focus mode")]
+        [SerializeField] private GameObject focusModeBadge;
+        [SerializeField] private Button focusModeExitButton;
 
         [Header("Back")]
         [SerializeField] private Button backButton;
@@ -62,6 +67,10 @@ namespace PixelRoad.AR
         public TMP_Text ToastText => toastText;
 
         public Image FocusDirectionArrow => focusDirectionArrow;
+        public TMP_Text FocusDistanceText => focusDistanceText;
+
+        public GameObject FocusModeBadge => focusModeBadge;
+        public Button FocusModeExitButton => focusModeExitButton;
 
         public Button BackButton => backButton;
 
@@ -86,6 +95,9 @@ namespace PixelRoad.AR
             Require(statusText, nameof(statusText));
             Require(toastText, nameof(toastText));
             Require(focusDirectionArrow, nameof(focusDirectionArrow));
+            Require(focusDistanceText, nameof(focusDistanceText));
+            Require(focusModeBadge, nameof(focusModeBadge));
+            Require(focusModeExitButton, nameof(focusModeExitButton));
             Require(backButton, nameof(backButton));
             Require(captureButton, nameof(captureButton));
             Require(captureButtonImage, nameof(captureButtonImage));

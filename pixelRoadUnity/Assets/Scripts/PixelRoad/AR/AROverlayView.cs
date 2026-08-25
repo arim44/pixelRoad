@@ -18,6 +18,7 @@ namespace PixelRoad.AR
         private const string NoLandmarksMessage = "근처에 랜드마크가 없습니다.\n잠시 후 지도로 돌아갑니다.";
         private const float BlinkFrequencyHz = 2f;
         private const float MinBlinkAlpha = 0.25f;
+        private const float DistanceLabelGapPixels = 4f;
 
         private static readonly Color32 UnlockedIconTint = Color.white;
         private static readonly Color32 LockedIconTint = new Color32(124, 120, 112, 235);
@@ -42,6 +43,9 @@ namespace PixelRoad.AR
         /// <summary>뒤로가기 버튼을 눌렀을 때 발생한다. 씬 전환은 로딩 화면이 필요해 ARSceneController가 처리한다.</summary>
         public event Action BackRequested;
 
+        /// <summary>집중 모드 X 버튼을 눌렀을 때 발생한다. 실제로 선택을 해제하는 건 ARSceneController가 한다.</summary>
+        public event Action FocusModeExitRequested;
+
         public AROverlayView(AROverlayUiBindings uiBindings, ARConfig config)
         {
             this.uiBindings = uiBindings;
@@ -51,23 +55,25 @@ namespace PixelRoad.AR
             // AR은 도감 썸네일을 그리지 않으므로 대체 이미지 이름은 비워 둔다.
             iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName, string.Empty);
 
-            // 프레임 테두리 화살표(엣지)와 나침반 화살표(집중 모드)는 랜드마크마다 다른 아이콘과 달리
-            // 데이터 없이 고정된 픽셀아트라, 프리팹에 굽는 대신 지금처럼 코드로 계속 생성해 붙인다.
+            // 나침반 화살표(집중 모드)는 랜드마크마다 다른 아이콘과 달리 데이터 없이 고정된 픽셀아트라,
+            // 프리팹에 굽는 대신 지금처럼 코드로 계속 생성해 붙인다.
             arrowSprite = ARUiFactory.CreateTriangleSprite(config.edgeArrowPixelSize, TextColor);
 
-            uiBindings.CaptureButtonImage.sprite = ARUiFactory.CreateCircleSprite(
-                (int)uiBindings.CaptureButtonImage.rectTransform.sizeDelta.x, Color.white);
             uiBindings.FocusDirectionArrow.sprite = arrowSprite;
 
             uiBindings.BackButton.onClick.AddListener(() => BackRequested?.Invoke());
             uiBindings.CaptureButton.onClick.AddListener(() => CaptureRequested?.Invoke());
             uiBindings.ThumbnailButton.onClick.AddListener(() => ThumbnailClicked?.Invoke());
+            uiBindings.FocusModeExitButton.onClick.AddListener(() => FocusModeExitRequested?.Invoke());
             uiBindings.UnlockDialog.Initialize();
 
             uiBindings.StatusText.gameObject.SetActive(false);
             uiBindings.ToastText.gameObject.SetActive(false);
             uiBindings.ThumbnailFrame.SetActive(false);
             uiBindings.FocusDirectionArrow.gameObject.SetActive(false);
+            uiBindings.FocusDistanceText.gameObject.SetActive(false);
+            uiBindings.FocusModeBadge.SetActive(false);
+            uiBindings.FocusModeExitButton.gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -92,8 +98,9 @@ namespace PixelRoad.AR
         }
 
         /// <summary>
-        /// 캡처 순간에만 촬영 버튼·뒤로가기 버튼·이전 썸네일을 화면에서 감춰서, 찍힌 사진에 UI가 함께 찍히지 않게 한다.
-        /// 썸네일은 감추기만 하고 다시 켜지는 않는다 - 캡처 직후 ShowCapturedThumbnail이 새 사진으로 바로 다시 띄우기 때문이다.
+        /// 캡처 순간에만 촬영 버튼·뒤로가기 버튼·이전 썸네일·집중 모드 X 버튼을 화면에서 감춰서, 찍힌 사진에
+        /// UI가 함께 찍히지 않게 한다. 썸네일과 X 버튼은 감추기만 하고 다시 켜지는 않는다 - 썸네일은 캡처 직후
+        /// ShowCapturedThumbnail이, X 버튼은 다음 프레임의 ShowFocusModeUi/HideFocusModeUi가 알아서 되돌린다.
         /// </summary>
         public void SetCaptureUiVisible(bool visible)
         {
@@ -102,6 +109,7 @@ namespace PixelRoad.AR
             if (!visible)
             {
                 uiBindings.ThumbnailFrame.SetActive(false);
+                uiBindings.FocusModeExitButton.gameObject.SetActive(false);
             }
         }
 
@@ -109,7 +117,8 @@ namespace PixelRoad.AR
         public void ShowCapturedThumbnail(Sprite sprite)
         {
             uiBindings.ThumbnailImage.sprite = sprite;
-            uiBindings.ThumbnailFrame.SetActive(true);
+            // 요청에 따라 캡처 미리보기 썸네일을 화면에 표시하지 않도록 비활성화.
+            // uiBindings.ThumbnailFrame.SetActive(true);
         }
 
         /// <summary>썸네일을 감춘다 - 원본 사진이 갤러리에서 삭제된 것으로 확인됐을 때 등에 쓴다.</summary>
@@ -153,8 +162,12 @@ namespace PixelRoad.AR
             uiBindings.StatusText.color = color;
         }
 
-        /// <summary>anchoredY는 카메라를 위/아래로 기울인 정도(피치)에 따라 계산된 세로 위치다.</summary>
-        public void ShowOnScreen(ARLandmarkSnapshot landmark, float anchoredX, float anchoredY, double distanceMeters)
+        /// <summary>
+        /// anchoredY는 카메라를 위/아래로 기울인 정도(피치)에 따라 계산된 세로 위치다.
+        /// showDistanceLabel이 false면(집중 모드) 핀 아래 거리 표시는 감춘다 - 그때는 FocusDirectionArrow
+        /// 아래에 거리를 대신 보여준다(ShowFocusDirection 참고).
+        /// </summary>
+        public void ShowOnScreen(ARLandmarkSnapshot landmark, float anchoredX, float anchoredY, double distanceMeters, bool showDistanceLabel)
         {
             LandmarkBinding binding = GetOrCreateBinding(landmark);
             binding.Root.gameObject.SetActive(true);
@@ -162,27 +175,32 @@ namespace PixelRoad.AR
             binding.Icon.rectTransform.sizeDelta = new Vector2(config.iconPixelSize, config.iconPixelSize);
             binding.Icon.rectTransform.localEulerAngles = Vector3.zero;
             binding.Root.anchoredPosition = new Vector2(anchoredX, anchoredY);
+            binding.DistanceLabel.rectTransform.anchoredPosition = new Vector2(0f, -(config.iconPixelSize * 0.5f) - DistanceLabelGapPixels);
             binding.DistanceLabel.text = FormatDistance(distanceMeters);
+            binding.DistanceLabel.gameObject.SetActive(showDistanceLabel);
         }
 
         /// <summary>
-        /// 화면 가장자리 방향 화살표를 표시한다. baseAnchoredY는 카메라 피치에 따른 기본 세로 위치이고,
-        /// sameSideSlotIndex는 이번 프레임에 같은 쪽(좌/우)에 표시되는 화살표들 사이에서 이 랜드마크의
-        /// 순번(0부터)이다 - baseAnchoredY를 기준으로 위/아래로 떨어뜨려 쌓아 여러 개가 겹치지 않게 한다.
+        /// 화면 밖 랜드마크를 화면 가장자리에 작은 랜드마크 아이콘으로 표시한다. baseAnchoredY는 카메라
+        /// 피치에 따른 기본 세로 위치이고, sameSideSlotIndex는 이번 프레임에 같은 쪽(좌/우)에 표시되는
+        /// 아이콘들 사이에서 이 랜드마크의 순번(0부터)이다 - baseAnchoredY를 기준으로 위/아래로 떨어뜨려
+        /// 쌓아 여러 개가 겹치지 않게 한다. showDistanceLabel은 ShowOnScreen과 같은 의미다.
         /// </summary>
-        public void ShowAtEdge(ARLandmarkSnapshot landmark, bool rightSide, float baseAnchoredY, double distanceMeters, int sameSideSlotIndex)
+        public void ShowAtEdge(ARLandmarkSnapshot landmark, bool rightSide, float baseAnchoredY, double distanceMeters, int sameSideSlotIndex, bool showDistanceLabel)
         {
             LandmarkBinding binding = GetOrCreateBinding(landmark);
             binding.Root.gameObject.SetActive(true);
-            binding.Icon.sprite = arrowSprite;
+            binding.Icon.sprite = binding.NormalSprite;
             binding.Icon.rectTransform.sizeDelta = new Vector2(config.edgeArrowPixelSize, config.edgeArrowPixelSize);
-            binding.Icon.rectTransform.localEulerAngles = new Vector3(0f, 0f, rightSide ? -90f : 90f);
+            binding.Icon.rectTransform.localEulerAngles = Vector3.zero;
 
             float halfWidth = uiBindings.LandmarkRoot.rect.width * 0.5f;
             float x = Mathf.Max(0f, halfWidth - config.edgeMarginPixels);
             float y = baseAnchoredY + StackedOffsetY(sameSideSlotIndex, config.edgeStackSpacingPixels);
             binding.Root.anchoredPosition = new Vector2(rightSide ? x : -x, y);
+            binding.DistanceLabel.rectTransform.anchoredPosition = new Vector2(0f, -(config.edgeArrowPixelSize * 0.5f) - DistanceLabelGapPixels);
             binding.DistanceLabel.text = FormatDistance(distanceMeters);
+            binding.DistanceLabel.gameObject.SetActive(showDistanceLabel);
         }
 
         /// <summary>
@@ -226,15 +244,32 @@ namespace PixelRoad.AR
         /// deltaDegrees는 카메라 정면 기준 랜드마크 방위각(오른쪽이 양수)으로, 화면 안/밖 여부와 상관없이
         /// 항상 실제 각도로 회전해 자연스럽게 그 방향을 가리킨다.
         /// </summary>
-        public void ShowFocusDirection(float deltaDegrees)
+        public void ShowFocusDirection(float deltaDegrees, double distanceMeters)
         {
             uiBindings.FocusDirectionArrow.gameObject.SetActive(true);
             uiBindings.FocusDirectionArrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, -deltaDegrees);
+            uiBindings.FocusDistanceText.text = FormatDistance(distanceMeters);
+            uiBindings.FocusDistanceText.gameObject.SetActive(true);
         }
 
         public void HideFocusDirection()
         {
             uiBindings.FocusDirectionArrow.gameObject.SetActive(false);
+            uiBindings.FocusDistanceText.gameObject.SetActive(false);
+        }
+
+        /// <summary>집중 모드에 들어갔을 때 상단 "집중 모드" 뱃지와 하단 중앙 X 버튼을 보여준다.</summary>
+        public void ShowFocusModeUi()
+        {
+            uiBindings.FocusModeBadge.SetActive(true);
+            uiBindings.FocusModeExitButton.gameObject.SetActive(true);
+        }
+
+        /// <summary>집중 모드를 빠져나왔을 때 뱃지와 X 버튼을 감춘다.</summary>
+        public void HideFocusModeUi()
+        {
+            uiBindings.FocusModeBadge.SetActive(false);
+            uiBindings.FocusModeExitButton.gameObject.SetActive(false);
         }
 
         /// <summary>랜드마크 핀 프리팹을 Instantiate해서 바인딩을 만든다. id별로 한 번만 만들고 이후에는 재사용한다.</summary>
@@ -255,9 +290,8 @@ namespace PixelRoad.AR
             string landmarkId = landmark.Id;
             pin.Button.onClick.AddListener(() => LandmarkClicked?.Invoke(landmarkId));
 
-            // 거리 라벨 위치는 아이콘 크기(iconPixelSize) 기준으로 한 번만 잡는다 - 엣지 화살표 모드로
-            // 바뀌어도(아이콘이 더 작은 edgeArrowPixelSize로 바뀌어도) 라벨 자리는 그대로 유지된다.
-            pin.DistanceLabel.rectTransform.anchoredPosition = new Vector2(0f, -(config.iconPixelSize * 0.5f) - 4f);
+            // 거리 라벨 위치는 아이콘 크기에 맞춰 ShowOnScreen/ShowAtEdge가 매번 다시 잡는다
+            // (아이콘 크기가 모드마다 달라 간격을 고정하면 작은 엣지 아이콘에서 라벨이 너무 멀어진다).
 
             LandmarkBinding binding = new LandmarkBinding(
                 (RectTransform)pin.transform, pin.Icon, pin.DistanceLabel, normalSprite);

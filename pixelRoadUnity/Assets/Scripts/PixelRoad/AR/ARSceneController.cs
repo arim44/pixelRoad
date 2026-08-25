@@ -43,6 +43,9 @@ namespace PixelRoad.AR
         private Texture2D lastThumbnailTexture;
         private string lastCaptureUri;
         private Coroutine toastHideRoutine;
+        /// <summary>스크린샷을 찍는 도중인지. 이 동안은 UpdateLandmarks가 집중 모드 UI를 다시 켜지 않는다 -
+        /// 안 그러면 SetCaptureUiVisible(false)로 감춘 X 버튼을 같은 프레임에 되살려 스크린샷에 찍혀 버린다.</summary>
+        private bool isCapturingScreenshot;
         private VisitRepository visitRepository;
 
         /// <summary>이번 AR 세션에서 이미 해금 처리(또는 원래 해금 상태)로 확인한 랜드마크 id.
@@ -57,6 +60,7 @@ namespace PixelRoad.AR
             view.ThumbnailClicked += OnThumbnailClicked;
             view.LandmarkClicked += OnLandmarkClicked;
             view.BackRequested += OnBackRequested;
+            view.FocusModeExitRequested += OnFocusModeExitRequested;
             RestoreLastCapture();
 
             // AR 화면 UI가 다 세워진 지금 로딩 화면을 이어받아 페이드아웃시킨다. MapScene에서 미리
@@ -142,6 +146,7 @@ namespace PixelRoad.AR
                 view.ThumbnailClicked -= OnThumbnailClicked;
                 view.LandmarkClicked -= OnLandmarkClicked;
                 view.BackRequested -= OnBackRequested;
+                view.FocusModeExitRequested -= OnFocusModeExitRequested;
             }
 
             locationProvider?.Stop();
@@ -216,6 +221,12 @@ namespace PixelRoad.AR
             GlobalValue.SelectedSpot = FindSpotById(landmarkId);
         }
 
+        /// <summary>집중 모드 X 버튼을 누르면 선택을 풀어 집중 모드를 빠져나온다.</summary>
+        private void OnFocusModeExitRequested()
+        {
+            GlobalValue.SelectedSpot = null;
+        }
+
         /// <summary>
         /// 랜드마크 방문 반경 안에 처음 들어왔을 때 호출한다. VisitRepository에 기록하고(오늘 이미
         /// 기록됐으면 false), 성공하면 실제 SpotRuntimeState를 해금 처리한 뒤 핀 아이콘 색도 갱신한다.
@@ -274,10 +285,12 @@ namespace PixelRoad.AR
         /// </summary>
         private IEnumerator CaptureScreenshotRoutine()
         {
+            isCapturingScreenshot = true;
             view.SetCaptureUiVisible(false);
             yield return new WaitForEndOfFrame();
 
             Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
+            isCapturingScreenshot = false;
             view.SetCaptureUiVisible(true);
 
             byte[] pngBytes = screenshot.EncodeToPNG();
@@ -342,9 +355,24 @@ namespace PixelRoad.AR
             int visibleCount = 0;
 
             // 집중 모드: 랜드마크 핀을 눌러 GlobalValue.SelectedSpot이 채워져 있으면 그 랜드마크만 보여주고
-            // 나머지는 숨긴다. 화면 중앙 아래 나침반 화살표도 이때만 그 방향을 가리키며 보인다.
+            // 나머지는 숨긴다. 화면 중앙 아래 나침반 화살표, 상단 "집중 모드" 뱃지, 하단 중앙 X 버튼도
+            // 이때만 보인다 - X 버튼을 누르면 OnFocusModeExitRequested가 선택을 풀어 빠져나온다.
             string focusedLandmarkId = GlobalValue.SelectedSpot?.Definition.Id;
             bool focusDirectionShown = false;
+
+            // 캡처 중에는 건드리지 않는다 - SetCaptureUiVisible(false)가 이미 X 버튼을 감췄는데
+            // 여기서 다시 켜면 같은 프레임 안에서 스크린샷에 그대로 찍혀 버린다.
+            if (!isCapturingScreenshot)
+            {
+                if (focusedLandmarkId != null)
+                {
+                    view.ShowFocusModeUi();
+                }
+                else
+                {
+                    view.HideFocusModeUi();
+                }
+            }
 
             IReadOnlyList<ARLandmarkSnapshot> landmarks = ARHandoff.Landmarks;
             for (int i = 0; i < landmarks.Count; i++)
@@ -387,20 +415,21 @@ namespace PixelRoad.AR
 
                 if (focusedLandmarkId != null)
                 {
-                    view.ShowFocusDirection(delta);
+                    view.ShowFocusDirection(delta, distance);
                     focusDirectionShown = true;
                 }
 
+                bool showDistanceLabel = focusedLandmarkId == null;
                 if (Mathf.Abs(delta) <= horizontalFov * 0.5f)
                 {
                     float screenX = ARCompassMath.DeltaToScreenOffset(delta, horizontalFov, halfCanvasWidth);
-                    view.ShowOnScreen(landmark, screenX, screenY, distance);
+                    view.ShowOnScreen(landmark, screenX, screenY, distance, showDistanceLabel);
                 }
                 else
                 {
                     bool rightSide = delta > 0f;
                     int slotIndex = rightSide ? rightEdgeCount++ : leftEdgeCount++;
-                    view.ShowAtEdge(landmark, rightSide, screenY, distance, slotIndex);
+                    view.ShowAtEdge(landmark, rightSide, screenY, distance, slotIndex, showDistanceLabel);
                 }
             }
 

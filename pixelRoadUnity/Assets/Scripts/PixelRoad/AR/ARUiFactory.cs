@@ -4,7 +4,7 @@ namespace PixelRoad.AR
 {
     /// <summary>
     /// AR 화면에서 데이터에 따라 매 프레임 바뀌는 픽셀아트 스프라이트(엣지 화살표, 집중 모드 나침반,
-    /// 촬영 버튼, 아이콘 없는 랜드마크의 대체 마커)를 코드로 생성하는 헬퍼.
+    /// 아이콘 없는 랜드마크의 대체 마커)를 코드로 생성하는 헬퍼.
     /// 정적인 UI 구조(버튼 위치, 텍스트 등)는 AROverlayUIRoot.prefab에 있고, 이 클래스는 그 프리팹의
     /// Image 컴포넌트에 입힐 텍스처만 만든다.
     /// </summary>
@@ -27,35 +27,6 @@ namespace PixelRoad.AR
                     bool inside = manhattan <= radius;
                     bool isBorder = Mathf.Abs(manhattan - radius) < 1.4f;
                     texture.SetPixel(x, y, inside ? (isBorder ? border : color) : clear);
-                }
-            }
-
-            texture.Apply();
-            return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
-        }
-
-        /// <summary>카메라 셔터 버튼 등에 쓰는 원형 스프라이트. 테두리를 살짝 어둡게 둘러 입체감을 준다.</summary>
-        public static Sprite CreateCircleSprite(int size, Color32 color)
-        {
-            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-            texture.filterMode = FilterMode.Point;
-            Color32 clear = new Color32(0, 0, 0, 0);
-            Color32 border = new Color32(20, 18, 16, 255);
-            float center = (size - 1) * 0.5f;
-            float radius = size * 0.46f;
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    float distance = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
-                    if (distance <= radius)
-                    {
-                        texture.SetPixel(x, y, distance > radius - 3f ? border : color);
-                    }
-                    else
-                    {
-                        texture.SetPixel(x, y, clear);
-                    }
                 }
             }
 
