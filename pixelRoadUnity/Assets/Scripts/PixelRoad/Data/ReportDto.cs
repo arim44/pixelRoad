@@ -3,7 +3,7 @@ using System;
 namespace PixelRoad.Data
 {
     /// <summary>
-    /// POST {서버}/api/report 요청 본문.
+    /// POST {서버}/api/ai/report 요청 본문.
     /// <c>{ "visitedLandmarks": [ { "landmarkId": 1, "visitCount": 2 } ] }</c>
     /// </summary>
     [Serializable]
@@ -21,10 +21,24 @@ namespace PixelRoad.Data
     }
 
     /// <summary>
-    /// 200 OK 응답 본문.
-    /// <c>{ "analysis": "...", "recommendation": { "landmarkId": 24, "name": "...", "reason": "..." } }</c>
+    /// 200 OK 응답 본문 전체.
+    /// <c>{ "success": true, "data": { "analysis": "...", "recommendation": {...} } }</c>
     ///
-    /// 중첩 객체 하나뿐이라 JsonUtility로 그대로 읽힌다(배열 필드가 없어 래핑이 필요 없다).
+    /// 서버가 성공 여부로 한 번 감싸서 보내므로, 화면이 쓰는 실제 내용은 <see cref="data"/> 안에 있다.
+    /// </summary>
+    [Serializable]
+    public sealed class ReportApiEnvelope
+    {
+        /// <summary>서버가 판단한 성공 여부. false면 data를 신뢰하지 않는다.</summary>
+        public bool success;
+
+        /// <summary>분석 결과 본문.</summary>
+        public ReportResponse data;
+    }
+
+    /// <summary>
+    /// 분석 결과 본문.
+    /// <c>{ "analysis": "...", "recommendation": { "landmarkId": 24, "name": "...", "reason": "..." } }</c>
     /// </summary>
     [Serializable]
     public sealed class ReportResponse
