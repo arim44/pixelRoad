@@ -1,22 +1,10 @@
 fileFormatVersion: 2
-guid: 2bf6b57c8fbc5ca498df129a6abd2a61
+guid: 0e66af0b3bd86714590adf3789f674e9
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -1914306190035399182
-    second: recenter_0
-  - first:
-      213: 295861131222270949
-    second: recenter_1
-  - first:
-      213: 4574062310117270602
-    second: recenter_2
-  - first:
-      213: -4253592536594709947
-    second: recenter_3
-  - first:
-      213: -7408101543613299279
-    second: recenter_4
+      213: -288685847227352361
+    second: lock 1_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -121,17 +109,30 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: iOS
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: recenter_0
+      name: lock 1_0
       rect:
         serializedVersion: 2
-        x: 59
-        y: 107
-        width: 10
-        height: 18
+        x: 13
+        y: 6
+        width: 62
+        height: 80
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -140,96 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 2fdcb9f99a40f65e0800000000000000
-      internalID: -1914306190035399182
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: recenter_1
-      rect:
-        serializedVersion: 2
-        x: 3
-        y: 59
-        width: 18
-        height: 10
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 5e3495d912c1b1400800000000000000
-      internalID: 295861131222270949
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: recenter_2
-      rect:
-        serializedVersion: 2
-        x: 25
-        y: 25
-        width: 78
-        height: 78
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: a44ea07cf655a7f30800000000000000
-      internalID: 4574062310117270602
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: recenter_3
-      rect:
-        serializedVersion: 2
-        x: 107
-        y: 59
-        width: 18
-        height: 10
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 542050ddf1438f4c0800000000000000
-      internalID: -4253592536594709947
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: recenter_4
-      rect:
-        serializedVersion: 2
-        x: 59
-        y: 3
-        width: 10
-        height: 18
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 1b508e855e2213990800000000000000
-      internalID: -7408101543613299279
+      spriteID: 7dab45060c16efbf0800000000000000
+      internalID: -288685847227352361
       vertices: []
       indices: 
       edges: []
