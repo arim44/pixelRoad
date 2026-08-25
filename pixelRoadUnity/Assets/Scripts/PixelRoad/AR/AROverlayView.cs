@@ -29,7 +29,6 @@ namespace PixelRoad.AR
         private readonly ARConfig config;
         private readonly SpotIconLibrary iconLibrary;
         private readonly Dictionary<string, LandmarkBinding> bindings = new Dictionary<string, LandmarkBinding>();
-        private readonly Sprite arrowSprite;
 
         /// <summary>촬영 버튼이 눌렸을 때 발생한다. 실제 캡처·저장은 코루틴이 필요해 ARSceneController가 처리한다.</summary>
         public event Action CaptureRequested;
@@ -55,12 +54,6 @@ namespace PixelRoad.AR
             // AR은 도감 썸네일을 그리지 않으므로 대체 이미지 이름은 비워 둔다.
             iconLibrary = new SpotIconLibrary(config.spotIconResourceFolder, config.defaultSpotIconName, string.Empty);
 
-            // 나침반 화살표(집중 모드)는 랜드마크마다 다른 아이콘과 달리 데이터 없이 고정된 픽셀아트라,
-            // 프리팹에 굽는 대신 지금처럼 코드로 계속 생성해 붙인다.
-            arrowSprite = ARUiFactory.CreateTriangleSprite(config.edgeArrowPixelSize, TextColor);
-
-            uiBindings.FocusDirectionArrow.sprite = arrowSprite;
-
             uiBindings.BackButton.onClick.AddListener(() => BackRequested?.Invoke());
             uiBindings.CaptureButton.onClick.AddListener(() => CaptureRequested?.Invoke());
             uiBindings.ThumbnailButton.onClick.AddListener(() => ThumbnailClicked?.Invoke());
@@ -71,7 +64,7 @@ namespace PixelRoad.AR
             uiBindings.ToastText.gameObject.SetActive(false);
             uiBindings.ThumbnailFrame.SetActive(false);
             uiBindings.FocusDirectionArrow.gameObject.SetActive(false);
-            uiBindings.FocusDistanceText.gameObject.SetActive(false);
+            uiBindings.FocusDistanceBadge.SetActive(false);
             uiBindings.FocusModeBadge.SetActive(false);
             uiBindings.FocusModeExitButton.gameObject.SetActive(false);
         }
@@ -249,13 +242,13 @@ namespace PixelRoad.AR
             uiBindings.FocusDirectionArrow.gameObject.SetActive(true);
             uiBindings.FocusDirectionArrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, -deltaDegrees);
             uiBindings.FocusDistanceText.text = FormatDistance(distanceMeters);
-            uiBindings.FocusDistanceText.gameObject.SetActive(true);
+            uiBindings.FocusDistanceBadge.SetActive(true);
         }
 
         public void HideFocusDirection()
         {
             uiBindings.FocusDirectionArrow.gameObject.SetActive(false);
-            uiBindings.FocusDistanceText.gameObject.SetActive(false);
+            uiBindings.FocusDistanceBadge.SetActive(false);
         }
 
         /// <summary>집중 모드에 들어갔을 때 상단 "집중 모드" 뱃지와 하단 중앙 X 버튼을 보여준다.</summary>

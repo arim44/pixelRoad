@@ -27,9 +27,9 @@ namespace PixelRoad.Editor
             importer.spriteImportMode = SpriteImportMode.Single;
             importer.alphaIsTransparency = true;
             importer.mipmapEnabled = false;
-            importer.filterMode = FilterMode.Bilinear;
+            importer.filterMode = FilterMode.Point;
             importer.wrapMode = TextureWrapMode.Clamp;
-            importer.spritePixelsPerUnit = 100f;
+            importer.spritePixelsPerUnit = 128f;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
         }
     }
