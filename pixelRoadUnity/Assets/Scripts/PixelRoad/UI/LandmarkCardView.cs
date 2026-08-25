@@ -12,6 +12,7 @@ namespace PixelRoad.UI
     {
         [SerializeField] private Button button;
         [SerializeField] private Image icon;
+        [SerializeField] private Image imageFrame;
         [SerializeField] private TMP_Text badgeText;
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text descriptionText;
@@ -21,6 +22,9 @@ namespace PixelRoad.UI
 
         /// <summary>랜드마크 이미지 자리. 썸네일이 없으면 프리팹의 기본 스프라이트가 남는다.</summary>
         public Image Icon => icon;
+
+        /// <summary>Icon을 감싸는 테두리. 잠금 여부에 따라 색이 바뀐다.</summary>
+        public Image ImageFrame => imageFrame;
 
         /// <summary>카드 좌상단의 도감 묶음(collectionTitle) 태그.</summary>
         public TMP_Text BadgeText => badgeText;

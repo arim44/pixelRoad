@@ -216,6 +216,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PixelRoad.UI.LandmarkCardView
   button: {fileID: 6939734848648979276}
   icon: {fileID: 1589173444172830355}
+  imageFrame: {fileID: 3328716403538492105}
   badgeText: {fileID: 3446236598173962287}
   nameText: {fileID: 6832888764687892669}
   descriptionText: {fileID: 5125177958769795894}
@@ -255,7 +256,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -60, y: -60}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3332521646429232304
 CanvasRenderer:

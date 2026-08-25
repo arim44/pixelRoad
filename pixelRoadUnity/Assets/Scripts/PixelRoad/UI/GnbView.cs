@@ -18,9 +18,9 @@ namespace PixelRoad.UI
     /// 와이어프레임 main_지도의 하단 Gnb.
     ///
     /// 탭 상태는 셋이다.
-    /// - select: 현재 열려 있는 탭(원본 색 그대로)
-    /// - active: 쓸 수 있지만 현재 탭은 아님(회색 곱연산으로 톤 다운)
-    /// - deserbled: 조건을 만족하지 못해 못 쓰는 탭(더 어둡게 톤 다운)
+    /// - select: 현재 열려 있는 탭(파랑)
+    /// - active: 쓸 수 있지만 현재 탭은 아님(흰색)
+    /// - deserbled: 조건을 만족하지 못해 못 쓰는 탭(회색)
     ///
     /// 상태 계산은 프레임마다 돌지 않고 상태가 바뀔 때만 색을 다시 칠한다.
     /// </summary>
@@ -28,9 +28,9 @@ namespace PixelRoad.UI
     {
         public const int TabCount = 4;
 
-        private static readonly Color32 SelectColor = new Color32(255, 255, 255, 255);
-        private static readonly Color32 ActiveColor = new Color32(160, 160, 160, 255);
-        private static readonly Color32 DisabledColor = new Color32(95, 95, 95, 255);
+        private static readonly Color32 SelectColor = new Color32(100, 172, 158, 255);
+        private static readonly Color32 ActiveColor = new Color32(255, 255, 255, 255);
+        private static readonly Color32 DisabledColor = new Color32(142, 142, 142, 255);
 
         [Header("Map")]
         [SerializeField] private Button mapButton;

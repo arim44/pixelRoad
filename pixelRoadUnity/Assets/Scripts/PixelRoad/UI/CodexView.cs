@@ -19,6 +19,8 @@ namespace PixelRoad.UI
         private static readonly Color32 LockedIconTint = new Color32(124, 120, 112, 235);
         private static readonly Color32 LockedNameColor = new Color32(122, 117, 108, 255);
         private static readonly Color32 UnlockedNameColor = new Color32(246, 237, 217, 255);
+        private static readonly Color32 LockedFrameColor = new Color32(0x76, 0x74, 0x6E, 255);
+        private static readonly Color32 UnlockedFrameColor = new Color32(0xD9, 0xD9, 0xD9, 255);
         private static readonly Color32 SegmentFilled = new Color32(200, 58, 45, 255);
         private static readonly Color32 SegmentEmpty = new Color32(214, 203, 180, 255);
 
@@ -166,6 +168,7 @@ namespace PixelRoad.UI
             }
 
             view.Icon.color = unlocked ? Color.white : (Color)LockedIconTint;
+            view.ImageFrame.color = unlocked ? (Color)UnlockedFrameColor : (Color)LockedFrameColor;
             view.LockIcon.gameObject.SetActive(!unlocked);
         }
 
