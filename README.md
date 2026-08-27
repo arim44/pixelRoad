@@ -240,30 +240,7 @@ AI 리포트에서는 다음과 같은 정보를 제공합니다.
 
 # 🧩 시스템 아키텍처
 
-```text
-                         PixelRoad
-                             │
-              ┌──────────────┴──────────────┐
-              │                             │
-        Unity Mobile Client             NestJS Backend
-              │                             │
-       ┌──────┼─────────┐                   │
-       │      │         │                   │
-      GPS    Map       AR                  AI API
-       │      │         │                   │
-       └──────┼─────────┘                   │
-              │                             │
-        landmarks.json ─────────────→ AI Report API
-              │                             │
-       Landmark Discovery                   │
-              │                             ↓
-        Collection System             Hugging Face API
-              │                             │
-              └─────────── AI Request ─────┘
-                            │
-                            ↓
-                      AI 탐험 리포트
-```
+<img width="3244" height="2084" alt="pixelroadSystem구성" src="https://github.com/user-attachments/assets/8bb96346-7ff8-4549-b546-05b95a8ef870" />
 
 ---
 
