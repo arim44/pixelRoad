@@ -46,7 +46,7 @@ export class AiClientService {
                     },
                 ],
                 temperature: 0.7,
-                max_tokens: 700,
+                max_tokens: 1200,
             });
 
             //1 AI 응답확인
